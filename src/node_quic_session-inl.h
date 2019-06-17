@@ -26,7 +26,7 @@ inline void SetConfig(Environment* env, int idx, uint64_t* val) {
     *val = buffer[idx];
 }
 
-inline void SetConfig(Environment* env, int idx, size_t* val) {
+inline void SetConfig32(Environment* env, int idx, size_t* val) {
   AliasedFloat64Array& buffer = env->quic_state()->quicsessionconfig_buffer;
   uint64_t flags = buffer[IDX_QUIC_SESSION_CONFIG_COUNT];
   if (flags & (1 << idx))
@@ -75,7 +75,7 @@ inline void QuicSessionConfig::Set(
             &max_packet_size_);
   SetConfig(env, IDX_QUIC_SESSION_MAX_ACK_DELAY,
             &max_ack_delay_);
-  SetConfig(env, IDX_QUIC_SESSION_MAX_CRYPTO_BUFFER,
+  SetConfig32(env, IDX_QUIC_SESSION_MAX_CRYPTO_BUFFER,
             &max_crypto_buffer_);
 
   max_crypto_buffer_ = std::max(max_crypto_buffer_, MINIMUM_MAX_CRYPTO_BUFFER);
