@@ -26,6 +26,13 @@ inline void SetConfig(Environment* env, int idx, uint64_t* val) {
     *val = buffer[idx];
 }
 
+inline void SetConfig(Environment* env, int idx, size_t* val) {
+  AliasedFloat64Array& buffer = env->quic_state()->quicsessionconfig_buffer;
+  uint64_t flags = buffer[IDX_QUIC_SESSION_CONFIG_COUNT];
+  if (flags & (1 << idx))
+    *val = (size_t)buffer[idx];
+}
+
 }  // namespace
 
 inline void QuicSessionConfig::ResetToDefaults() {
