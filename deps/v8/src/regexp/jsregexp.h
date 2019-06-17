@@ -5,11 +5,11 @@
 #ifndef V8_REGEXP_JSREGEXP_H_
 #define V8_REGEXP_JSREGEXP_H_
 
-#include "src/allocation.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects/js-regexp.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp-macro-assembler.h"
+#include "src/utils/allocation.h"
 #include "src/zone/zone-splay-tree.h"
 
 namespace v8 {
@@ -288,35 +288,6 @@ class DispatchTable : public ZoneObject {
   OutSet empty_;
   ZoneSplayTree<Config>* tree() { return &tree_; }
   ZoneSplayTree<Config> tree_;
-};
-
-
-// Categorizes character ranges into BMP, non-BMP, lead, and trail surrogates.
-class UnicodeRangeSplitter {
- public:
-  V8_EXPORT_PRIVATE UnicodeRangeSplitter(Zone* zone,
-                                         ZoneList<CharacterRange>* base);
-  void Call(uc32 from, DispatchTable::Entry entry);
-
-  ZoneList<CharacterRange>* bmp() { return bmp_; }
-  ZoneList<CharacterRange>* lead_surrogates() { return lead_surrogates_; }
-  ZoneList<CharacterRange>* trail_surrogates() { return trail_surrogates_; }
-  ZoneList<CharacterRange>* non_bmp() const { return non_bmp_; }
-
- private:
-  static const int kBase = 0;
-  // Separate ranges into
-  static const int kBmpCodePoints = 1;
-  static const int kLeadSurrogates = 2;
-  static const int kTrailSurrogates = 3;
-  static const int kNonBmpCodePoints = 4;
-
-  Zone* zone_;
-  DispatchTable table_;
-  ZoneList<CharacterRange>* bmp_;
-  ZoneList<CharacterRange>* lead_surrogates_;
-  ZoneList<CharacterRange>* trail_surrogates_;
-  ZoneList<CharacterRange>* non_bmp_;
 };
 
 #define FOR_EACH_NODE_TYPE(VISIT)                                    \
