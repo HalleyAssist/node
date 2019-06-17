@@ -29,6 +29,9 @@
 #include "inspector_agent.h"
 #include "inspector_profiler.h"
 #endif
+#if HAVE_OPENSSL
+#include "node_quic_state.h"
+#endif
 #include "handle_wrap.h"
 #include "node.h"
 #include "node_binding.h"
@@ -286,6 +289,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(promise_string, "promise")                                                 \
   V(pubkey_string, "pubkey")                                                   \
   V(query_string, "query")                                                     \
+  V(quic_alpn_string, "h3-20")                                                 \
   V(raw_string, "raw")                                                         \
   V(read_host_object_string, "_readHostObject")                                \
   V(readable_string, "readable")                                               \
@@ -312,6 +316,8 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(source_string, "source")                                                   \
   V(stack_string, "stack")                                                     \
   V(start_time_string, "startTime")                                            \
+  V(state_string, "state")                                                     \
+  V(stats_string, "stats")                                                     \
   V(status_string, "status")                                                   \
   V(stdio_string, "stdio")                                                     \
   V(subject_string, "subject")                                                 \
@@ -360,6 +366,10 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(promise_wrap_template, v8::ObjectTemplate)                                 \
+  V(quicclientsession_constructor_template, v8::ObjectTemplate)                \
+  V(quicserversession_constructor_template, v8::ObjectTemplate)                \
+  V(quicserverstream_constructor_template, v8::ObjectTemplate)                 \
+  V(quicsocketsendwrap_constructor_template, v8::ObjectTemplate)               \
   V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)            \
   V(script_context_constructor_template, v8::FunctionTemplate)                 \
   V(secure_context_constructor_template, v8::FunctionTemplate)                 \
@@ -407,6 +417,25 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(process_object, v8::Object)                                                \
   V(primordials, v8::Object)                                                   \
   V(promise_reject_callback, v8::Function)                                     \
+  V(quic_on_socket_ready_function, v8::Function)                               \
+  V(quic_on_socket_close_function, v8::Function)                               \
+  V(quic_on_socket_error_function, v8::Function)                               \
+  V(quic_on_session_ready_function, v8::Function)                              \
+  V(quic_on_session_cert_function, v8::Function)                               \
+  V(quic_on_session_client_hello_function, v8::Function)                       \
+  V(quic_on_session_close_function, v8::Function)                              \
+  V(quic_on_session_error_function, v8::Function)                              \
+  V(quic_on_session_extend_function, v8::Function)                             \
+  V(quic_on_session_handshake_function, v8::Function)                          \
+  V(quic_on_session_keylog_function, v8::Function)                             \
+  V(quic_on_session_status_function, v8::Function)                             \
+  V(quic_on_session_ticket_function, v8::Function)                             \
+  V(quic_on_session_path_validation_function, v8::Function)                    \
+  V(quic_on_session_version_negotiation_function, v8::Function)                \
+  V(quic_on_stream_ready_function, v8::Function)                               \
+  V(quic_on_stream_close_function, v8::Function)                               \
+  V(quic_on_stream_error_function, v8::Function)                               \
+  V(quic_on_stream_reset_function, v8::Function)                               \
   V(script_data_constructor_function, v8::Function)                            \
   V(tick_callback_function, v8::Function)                                      \
   V(timers_callback_function, v8::Function)                                    \
@@ -500,7 +529,8 @@ struct CompileFnEntry {
 #define DEBUG_CATEGORY_NAMES(V)                                                \
   NODE_ASYNC_PROVIDER_TYPES(V)                                                 \
   V(INSPECTOR_SERVER)                                                          \
-  V(INSPECTOR_PROFILER)
+  V(INSPECTOR_PROFILER)                                                        \
+  V(NGTCP2_DEBUG)
 
 enum class DebugCategory {
 #define V(name) name,
@@ -518,6 +548,7 @@ struct AllocatedBuffer {
   inline ~AllocatedBuffer();
   inline void Resize(size_t len);
 
+  inline bool empty();
   inline uv_buf_t release();
   inline char* data();
   inline const char* data() const;
@@ -955,6 +986,11 @@ class Environment : public MemoryRetainer {
   inline http2::Http2State* http2_state() const;
   inline void set_http2_state(std::unique_ptr<http2::Http2State> state);
 
+#if HAVE_OPENSSL
+  inline QuicState* quic_state() const;
+  inline void set_quic_state(std::unique_ptr<QuicState> state);
+#endif
+
   inline bool debug_enabled(DebugCategory category) const;
   inline void set_debug_enabled(DebugCategory category, bool enabled);
   void set_debug_categories(const std::string& cats, bool enabled);
@@ -1272,6 +1308,9 @@ class Environment : public MemoryRetainer {
   char* http_parser_buffer_ = nullptr;
   bool http_parser_buffer_in_use_ = false;
   std::unique_ptr<http2::Http2State> http2_state_;
+#if HAVE_OPENSSL
+  std::unique_ptr<QuicState> quic_state_;
+#endif
 
   bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {0};
 
