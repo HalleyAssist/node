@@ -702,7 +702,7 @@ void QuicSocket::SendWrap::OnSend(
 int QuicSocket::SendWrap::Send() {
   std::vector<uv_buf_t> vec;
   if (auto buf = buffer_.lock()) {
-    size_t len = buf->DrainInto(&vec, &length_);
+    size_t len = buf->DrainInto(&vec, QuicBuffer::DRAIN_FROM_HEAD, &length_);
     if (len == 0) return 0;
     Debug(socket_, "Sending %llu bytes (%d buffers of %d remaining)",
           length_, len, buf->ReadRemaining());
