@@ -1,5 +1,5 @@
 #include "node_quic_buffer.h"
-#include "util.h"
+#include "util-inl.h"
 #include "uv.h"
 
 #include "gtest/gtest.h"
