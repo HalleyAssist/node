@@ -624,11 +624,13 @@ inline void QuicSession::SetLastError(QuicErrorFamily family, uint64_t code) {
   last_error_.code = code;
 }
 
+#if SIZE_MAX != 0xFFFFFFFF
 inline void QuicSession::SetLastError(QuicErrorFamily family, ssize_t code) {
   SetLastError(
       family,
       ngtcp2_err_infer_quic_transport_error_code(static_cast<int>(code)));
 }
+#endif
 
 inline void QuicSession::SetLastError(QuicErrorFamily family, int code) {
   SetLastError(family, ngtcp2_err_infer_quic_transport_error_code(code));
