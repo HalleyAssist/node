@@ -450,7 +450,8 @@ static WRITE_TRAN ossl_statem_client13_write_transition(SSL *s)
         return WRITE_TRAN_CONTINUE;
 
     case TLS_ST_PENDING_EARLY_DATA_END:
-        if (s->ext.early_data == SSL_EARLY_DATA_ACCEPTED) {
+        if (!(s->mode & SSL_MODE_QUIC_HACK)
+            && s->ext.early_data == SSL_EARLY_DATA_ACCEPTED) {
             st->hand_state = TLS_ST_CW_END_OF_EARLY_DATA;
             return WRITE_TRAN_CONTINUE;
         }
@@ -1613,7 +1614,10 @@ MSG_PROCESS_RETURN tls_process_server_hello(SSL *s, PACKET *pkt)
          * so the PAC-based session secret is always preserved. It'll be
          * overwritten if the server refuses resumption.
          */
-        if (s->session->session_id_length > 0) {
+        if (s->session->session_id_length > 0
+                || (SSL_IS_TLS13(s)
+                    && s->session->ext.tick_identity
+                       != TLSEXT_PSK_BAD_IDENTITY)) {
             tsan_counter(&s->session_ctx->stats.sess_miss);
             if (!ssl_get_new_session(s, 0)) {
                 /* SSLfatal() already called */

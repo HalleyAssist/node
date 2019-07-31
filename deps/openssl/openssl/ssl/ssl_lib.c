@@ -1807,6 +1807,12 @@ int SSL_read_early_data(SSL *s, void *buf, size_t num, size_t *readbytes)
         ret = SSL_accept(s);
         if (ret <= 0) {
             /* NBIO or error */
+            if ((s->mode & SSL_MODE_QUIC_HACK)
+                && s->ext.early_data == SSL_EARLY_DATA_ACCEPTED) {
+                *readbytes = 0;
+                return SSL_READ_EARLY_DATA_FINISH;
+            }
+
             s->early_data_state = SSL_EARLY_DATA_ACCEPT_RETRY;
             return SSL_READ_EARLY_DATA_ERROR;
         }
@@ -4319,6 +4325,16 @@ void SSL_set_msg_callback(SSL *ssl,
     SSL_callback_ctrl(ssl, SSL_CTRL_SET_MSG_CALLBACK, (void (*)(void))cb);
 }
 
+void SSL_set_key_callback(SSL *ssl,
+                          int (*cb)(SSL *ssl, int name,
+                                    const unsigned char *secret,
+                                    size_t secretlen, void *arg),
+                          void *arg)
+{
+    ssl->key_callback = cb;
+    ssl->key_callback_arg = arg;
+}
+
 void SSL_CTX_set_not_resumable_session_callback(SSL_CTX *ctx,
                                                 int (*cb) (SSL *ssl,
                                                            int
@@ -4478,7 +4494,7 @@ int ssl_handshake_hash(SSL *s, unsigned char *out, size_t outlen,
     return ret;
 }
 
-int SSL_session_reused(const SSL *s)
+int SSL_session_reused(SSL *s)
 {
     return s->hit;
 }
@@ -5069,11 +5085,6 @@ int SSL_client_hello_get1_extensions_present(SSL *s, int **out, size_t *outlen)
         ext = s->clienthello->pre_proc_exts + i;
         if (ext->present)
             num++;
-    }
-    if (num == 0) {
-        *out = NULL;
-        *outlen = 0;
-        return 1;
     }
     if ((present = OPENSSL_malloc(sizeof(*present) * num)) == NULL) {
         SSLerr(SSL_F_SSL_CLIENT_HELLO_GET1_EXTENSIONS_PRESENT,
