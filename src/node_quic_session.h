@@ -273,7 +273,9 @@ class QuicSession : public AsyncWrap,
           NGTCP2_NO_ERROR
       });
   inline void SetLastError(QuicErrorFamily family, uint64_t error_code);
+#if SIZE_MAX != 0xFFFFFFFF
   inline void SetLastError(QuicErrorFamily family, ssize_t error_code);
+#endif
   inline void SetLastError(QuicErrorFamily family, int error_code);
   int SetRemoteTransportParams(ngtcp2_transport_params* params);
 
