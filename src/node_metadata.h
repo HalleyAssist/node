@@ -8,6 +8,9 @@
 
 #if HAVE_OPENSSL
 #include <openssl/crypto.h>
+#if NODE_OPENSSL_HAS_QUIC && OPENSSL_VERSION_NUMBER >= 805306368  // OpenSSL 3
+#include <openssl/quic.h>
+#endif  // NODE_OPENSSL_HAS_QUIC && OPENSSL_VERSION_NUMBER >= 805306368
 #endif  // HAVE_OPENSSL
 
 namespace node {

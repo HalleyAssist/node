@@ -11,9 +11,16 @@
 
 #if HAVE_OPENSSL
 #include <openssl/opensslv.h>
+#if NODE_OPENSSL_HAS_QUIC
+#if OPENSSL_VERSION_NUMBER >= 805306368  // OpenSSL 3
+#include <openssl/quic.h>
+#else
+#include <openssl/crypto.h>
+#endif  // OPENSSL_VERSION_NUMBER
+#endif  // NODE_OPENSSL_HAS_QUIC
 #endif  // HAVE_OPENSSL
 
-#ifdef OPENSSL_INFO_QUIC
+#ifdef NODE_OPENSSL_HAS_QUIC
 #include <ngtcp2/version.h>
 #include <nghttp3/version.h>
 #endif
