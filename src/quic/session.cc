@@ -6,12 +6,9 @@
 #include "quic/quic.h"
 #include "quic/session.h"
 #include "quic/stream.h"
+
 #include "crypto/crypto_common.h"
-#if OPENSSL_VERSION_MAJOR >= 3
-#include "openssl/x509.h"
-#else
-#include "crypto/x509.h"
-#endif
+#include "crypto/crypto_x509.h"
 #include "aliased_struct-inl.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"

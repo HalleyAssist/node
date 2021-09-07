@@ -269,7 +269,7 @@ template <> Maybe<bool> ConfigObject::SetOption<double>(
     return Just(false);
 
   CHECK(value->IsNumber());
-  double val = static_cast<int64_t>(value.As<Number>()->Value());
+  double val = value.As<Number>()->Value();
   config_.get()->*member = val;
   return Just(true);
 }
