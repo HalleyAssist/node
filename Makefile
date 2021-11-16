@@ -188,7 +188,7 @@ testclean:
 .PHONY: distclean
 distclean:
 	$(RM) -r out
-	$(RM) config.gypi icu_config.gypi config_fips.gypi
+	$(RM) config.gypi icu_config.gypi
 	$(RM) config.mk
 	$(RM) -r $(NODE_EXE) $(NODE_G_EXE)
 	$(RM) -r node_modules
@@ -827,6 +827,9 @@ else
 ifeq ($(findstring s390,$(UNAME_M)),s390)
 DESTCPU ?= s390
 else
+ifeq ($(findstring arm64,$(UNAME_M)),arm64)
+DESTCPU ?= arm64
+else
 ifeq ($(findstring arm,$(UNAME_M)),arm)
 DESTCPU ?= arm
 else
@@ -840,6 +843,7 @@ ifeq ($(findstring riscv64,$(UNAME_M)),riscv64)
 DESTCPU ?= riscv64
 else
 DESTCPU ?= x86
+endif
 endif
 endif
 endif
@@ -1221,12 +1225,11 @@ bench-addons-clean:
 .PHONY: lint-md-rollup
 lint-md-rollup:
 	$(RM) tools/.*mdlintstamp
-	cd tools/node-lint-md-cli-rollup && npm install
-	cd tools/node-lint-md-cli-rollup && npm run build-node
+	cd tools/lint-md && npm ci && npm run build
 
 .PHONY: lint-md-clean
 lint-md-clean:
-	$(RM) -r tools/node-lint-md-cli-rollup/node_modules
+	$(RM) -r tools/lint-md/node_modules
 	$(RM) tools/.*mdlintstamp
 
 .PHONY: lint-md-build
@@ -1243,7 +1246,7 @@ LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(wildcard *.md
 LINT_MD_FILES = $(shell $(FIND) $(LINT_MD_TARGETS) -type f \
 	! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md' \
 	$(LINT_MD_NEWER))
-run-lint-md = tools/lint-md.mjs -q -f --no-stdout $(LINT_MD_FILES)
+run-lint-md = tools/lint-md/lint-md.mjs $(LINT_MD_FILES)
 # Lint all changed markdown files maintained by us
 tools/.mdlintstamp: $(LINT_MD_FILES)
 	$(info Running Markdown linter...)
@@ -1253,6 +1256,13 @@ tools/.mdlintstamp: $(LINT_MD_FILES)
 .PHONY: lint-md
 # Lints the markdown documents maintained by us in the codebase.
 lint-md: lint-js-doc | tools/.mdlintstamp
+
+run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
+.PHONY: format-md
+# Formats the markdown documents maintained by us in the codebase.
+format-md:
+	@$(call available-node,$(run-format-md))
+
 
 
 LINT_JS_TARGETS = .eslintrc.js benchmark doc lib test tools
@@ -1317,6 +1327,7 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	test/cctest/*.h \
 	test/embedding/*.cc \
 	test/embedding/*.h \
+	test/fixtures/*.c \
 	test/js-native-api/*/*.cc \
 	test/js-native-api/*/*.h \
 	test/node-api/*/*.cc \
@@ -1389,13 +1400,13 @@ cpplint: lint-cpp
 
 .PHONY: lint-py-build
 # python -m pip install flake8
-# Try with '--system' is to overcome systems that blindly set '--user'
+# Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build:
 	$(info Pip installing flake8 linter on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --upgrade -t tools/pip/site-packages flake8 || \
-		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages flake8
+	$(PYTHON) -m pip install --no-user --upgrade -t tools/pip/site-packages flake8 || \
+		$(PYTHON) -m pip install --no-user --upgrade --system -t tools/pip/site-packages flake8
 
-ifneq ("","$(wildcard tools/pip/site-packages)")
+ifneq ("","$(wildcard tools/pip/site-packages/flake8)")
 .PHONY: lint-py
 # Lints the Python code with flake8.
 # Flag the build if there are Python syntax errors or undefined names
@@ -1407,6 +1418,24 @@ lint-py:
 	$(warning Run 'make lint-py-build')
 endif
 
+.PHONY: lint-yaml-build
+# python -m pip install yamllint
+# Try with '--system' if it fails without; the system may have set '--user'
+lint-yaml-build:
+	$(info Pip installing yamllint on $(shell $(PYTHON) --version)...)
+	$(PYTHON) -m pip install --no-user --upgrade -t tools/pip/site-packages yamllint || \
+		$(PYTHON) -m pip install --no-user --upgrade --system -t tools/pip/site-packages yamllint
+
+.PHONY: lint-yaml
+# Lints the YAML files with yamllint.
+lint-yaml:
+	@if [ -d "tools/pip/site-packages/yamllint" ]; then \
+			PYTHONPATH=tools/pip $(PYTHON) -m yamllint .; \
+	else \
+		echo 'YAML linting with yamllint is not available'; \
+		echo "Run 'make lint-yaml-build'"; \
+	fi
+
 .PHONY: lint
 .PHONY: lint-ci
 ifneq ("","$(wildcard tools/node_modules/eslint/)")
@@ -1416,11 +1445,12 @@ lint: ## Run JS, C++, MD and doc linters.
 	$(MAKE) lint-cpp || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-addon-docs || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-md || EXIT_STATUS=$$? ; \
+	$(MAKE) lint-yaml || EXIT_STATUS=$$? ; \
 	exit $$EXIT_STATUS
 CONFLICT_RE=^>>>>>>> [[:xdigit:]]+|^<<<<<<< [[:alpha:]]+
 
 # Related CI job: node-test-linter
-lint-ci: lint-js-ci lint-cpp lint-py lint-md lint-addon-docs
+lint-ci: lint-js-ci lint-cpp lint-py lint-md lint-addon-docs lint-yaml-build lint-yaml
 	@if ! ( grep -IEqrs "$(CONFLICT_RE)" --exclude="error-message.js" benchmark deps doc lib src test tools ) \
 		&& ! ( $(FIND) . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
 		exit 0 ; \

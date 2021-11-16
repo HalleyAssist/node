@@ -11,7 +11,7 @@ def get_has_quic(include_path):
     crypto_quic_h = os.path.join(
         include_path,
         'openssl',
-        'crypto.h')
+        'quic.h')
 
     try:
       f = open(openssl_quic_h)

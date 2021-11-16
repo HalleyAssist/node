@@ -62,20 +62,27 @@ class ExternalReferenceRegistry {
   V(heap_utils)                                                                \
   V(messaging)                                                                 \
   V(native_module)                                                             \
+  V(os)                                                                        \
   V(performance)                                                               \
   V(process_methods)                                                           \
   V(process_object)                                                            \
+  V(report)                                                                    \
   V(task_queue)                                                                \
+  V(tcp_wrap)                                                                  \
+  V(tty_wrap)                                                                  \
   V(url)                                                                       \
   V(util)                                                                      \
+  V(pipe_wrap)                                                                 \
   V(serdes)                                                                    \
   V(string_decoder)                                                            \
   V(stream_wrap)                                                               \
+  V(signal_wrap)                                                               \
   V(trace_events)                                                              \
   V(timers)                                                                    \
   V(types)                                                                     \
   V(uv)                                                                        \
   V(v8)                                                                        \
+  V(zlib)                                                                      \
   V(worker)
 
 #if NODE_HAVE_I18N_SUPPORT
@@ -92,10 +99,24 @@ class ExternalReferenceRegistry {
 #define EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V)
 #endif  // HAVE_INSPECTOR
 
+#if HAVE_DTRACE || HAVE_ETW
+#define EXTERNAL_REFERENCE_BINDING_LIST_DTRACE(V) V(dtrace)
+#else
+#define EXTERNAL_REFERENCE_BINDING_LIST_DTRACE(V)
+#endif
+
+#if HAVE_OPENSSL
+#define EXTERNAL_REFERENCE_BINDING_LIST_CRYPTO(V) V(crypto) V(tls_wrap)
+#else
+#define EXTERNAL_REFERENCE_BINDING_LIST_CRYPTO(V)
+#endif  // HAVE_OPENSSL
+
 #define EXTERNAL_REFERENCE_BINDING_LIST(V)                                     \
   EXTERNAL_REFERENCE_BINDING_LIST_BASE(V)                                      \
   EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V)                                 \
-  EXTERNAL_REFERENCE_BINDING_LIST_I18N(V)
+  EXTERNAL_REFERENCE_BINDING_LIST_I18N(V)                                      \
+  EXTERNAL_REFERENCE_BINDING_LIST_DTRACE(V)                                    \
+  EXTERNAL_REFERENCE_BINDING_LIST_CRYPTO(V)
 
 }  // namespace node
 

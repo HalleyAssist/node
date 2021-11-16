@@ -1197,11 +1197,13 @@ class Environment : public MemoryRetainer {
   inline void set_has_serialized_options(bool has_serialized_options);
 
   inline bool is_main_thread() const;
+  inline bool no_native_addons() const;
   inline bool should_not_register_esm_loader() const;
   inline bool owns_process_state() const;
   inline bool owns_inspector() const;
   inline bool tracks_unmanaged_fds() const;
   inline bool hide_console_windows() const;
+  inline bool no_global_search_paths() const;
   inline uint64_t thread_id() const;
   inline worker::Worker* worker_context() const;
   Environment* worker_parent_env() const;
@@ -1436,6 +1438,9 @@ class Environment : public MemoryRetainer {
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();
 
+  inline uv_buf_t allocate_managed_buffer(const size_t suggested_size);
+  inline std::unique_ptr<v8::BackingStore> release_managed_buffer(
+      const uv_buf_t& buf);
   inline std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>*
       released_allocated_buffers();
 

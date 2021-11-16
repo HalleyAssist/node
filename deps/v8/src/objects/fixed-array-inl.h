@@ -84,7 +84,7 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
   return get(isolate, index).IsTheHole(isolate);
 }
 
-#if !defined(_WIN32) || defined(_WIN64)
+#if !defined(_WIN32) || (defined(_WIN64) && _MSC_VER < 1930 && __cplusplus < 201703L)
 void FixedArray::set(int index, Smi value) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
@@ -444,6 +444,16 @@ MaybeObject WeakFixedArray::Get(PtrComprCageBase cage_base, int index) const {
 
 void WeakFixedArray::Set(int index, MaybeObject value, WriteBarrierMode mode) {
   set_objects(index, value, mode);
+}
+
+Handle<WeakFixedArray> WeakFixedArray::EnsureSpace(Isolate* isolate,
+                                                   Handle<WeakFixedArray> array,
+                                                   int length) {
+  if (array->length() < length) {
+    int grow_by = length - array->length();
+    array = isolate->factory()->CopyWeakFixedArrayAndGrow(array, grow_by);
+  }
+  return array;
 }
 
 MaybeObjectSlot WeakFixedArray::data_start() {

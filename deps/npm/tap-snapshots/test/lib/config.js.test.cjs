@@ -68,6 +68,7 @@ exports[`test/lib/config.js TAP config list --json > output matches snapshot 1`]
   "ignore-scripts": false,
   "include": [],
   "include-staged": false,
+  "include-workspace-root": false,
   "init-author-email": "",
   "init-author-name": "",
   "init-author-url": "",
@@ -86,6 +87,7 @@ exports[`test/lib/config.js TAP config list --json > output matches snapshot 1`]
   "link": false,
   "local-address": null,
   "location": "user",
+  "lockfile-version": null,
   "loglevel": "notice",
   "logs-max": 10,
   "long": false,
@@ -146,13 +148,13 @@ exports[`test/lib/config.js TAP config list --json > output matches snapshot 1`]
   "unicode": false,
   "update-notifier": true,
   "usage": false,
-  "user-agent": "npm/{NPM-VERSION} node/{NODE-VERSION} {PLATFORM} {ARCH} workspaces/false",
+  "user-agent": "npm/{npm-version} node/{node-version} {platform} {arch} workspaces/{workspaces} {ci}",
   "version": false,
   "versions": false,
   "viewer": "{VIEWER}",
   "which": null,
   "workspace": [],
-  "workspaces": false,
+  "workspaces": null,
   "yes": null,
   "metrics-registry": "https://registry.npmjs.org/"
 }
@@ -217,6 +219,7 @@ if-present = false
 ignore-scripts = false
 include = []
 include-staged = false
+include-workspace-root = false
 init-author-email = ""
 init-author-name = "" 
 init-author-url = ""
@@ -236,6 +239,7 @@ legacy-peer-deps = false
 link = false
 local-address = null
 location = "user"
+lockfile-version = null
 loglevel = "notice"
 logs-max = 10
 ; long = false ; overridden by cli
@@ -296,14 +300,14 @@ umask = 0
 unicode = false
 update-notifier = true
 usage = false
-user-agent = "npm/{NPM-VERSION} node/{NODE-VERSION} {PLATFORM} {ARCH} workspaces/false"
+user-agent = "npm/{npm-version} node/{node-version} {platform} {arch} workspaces/{workspaces} {ci}"
 ; userconfig = "{HOME}/.npmrc" ; overridden by cli
 version = false
 versions = false
 viewer = "{VIEWER}"
 which = null
 workspace = []
-workspaces = false
+workspaces = null
 yes = null
 
 ; "global" config from {GLOBALPREFIX}/npmrc

@@ -31,6 +31,7 @@ class View extends BaseCommand {
       'json',
       'workspace',
       'workspaces',
+      'include-workspace-root',
     ]
   }
 
@@ -336,7 +337,7 @@ class View extends BaseCommand {
         email: color.cyan(manifest._npmUser.email),
       }),
       modified: !packument.time ? undefined
-      : color.yellow(relativeDate(packument.time[packument.version])),
+      : color.yellow(relativeDate(packument.time[manifest.version])),
       maintainers: (packument.maintainers || []).map((u) => unparsePerson({
         name: color.yellow(u.name),
         email: color.cyan(u.email),

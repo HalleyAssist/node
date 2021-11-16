@@ -144,9 +144,6 @@ int NewSessionCallback(SSL* s, SSL_SESSION* sess) {
     return 0;
 
   // Serialize session
-  // TODO(@jasnell): An AllocatedBuffer or BackingStore would be better
-  // here to start eliminating unnecessary uses of Buffer where an ordinary
-  // Uint8Array would do just fine.
   Local<Object> session = Buffer::New(env, size).FromMaybe(Local<Object>());
   if (UNLIKELY(session.IsEmpty()))
     return 0;
@@ -154,16 +151,12 @@ int NewSessionCallback(SSL* s, SSL_SESSION* sess) {
   unsigned char* session_data =
       reinterpret_cast<unsigned char*>(Buffer::Data(session));
 
-  memset(session_data, 0, size);
-  i2d_SSL_SESSION(sess, &session_data);
+  CHECK_EQ(i2d_SSL_SESSION(sess, &session_data), size);
 
   unsigned int session_id_length;
   const unsigned char* session_id_data =
       SSL_SESSION_get_id(sess, &session_id_length);
 
-  // TODO(@jasnell): An AllocatedBuffer or BackingStore would be better
-  // here to start eliminating unnecessary uses of Buffer where an ordinary
-  // Uint8Array would do just fine
   Local<Object> session_id = Buffer::Copy(
       env,
       reinterpret_cast<const char*>(session_id_data),
@@ -2107,7 +2100,59 @@ void TLSWrap::Initialize(
   target->Set(env->context(), tlsWrapString, fn).Check();
 }
 
+void TLSWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(TLSWrap::Wrap);
+  registry->Register(GetWriteQueueSize);
+
+  registry->Register(CertCbDone);
+  registry->Register(DestroySSL);
+  registry->Register(EnableCertCb);
+  registry->Register(EndParser);
+  registry->Register(EnableKeylogCallback);
+  registry->Register(EnableSessionCallbacks);
+  registry->Register(EnableTrace);
+  registry->Register(GetServername);
+  registry->Register(LoadSession);
+  registry->Register(NewSessionDone);
+  registry->Register(Receive);
+  registry->Register(Renegotiate);
+  registry->Register(RequestOCSP);
+  registry->Register(SetALPNProtocols);
+  registry->Register(SetOCSPResponse);
+  registry->Register(SetServername);
+  registry->Register(SetSession);
+  registry->Register(SetVerifyMode);
+  registry->Register(Start);
+  registry->Register(ExportKeyingMaterial);
+  registry->Register(IsSessionReused);
+  registry->Register(GetALPNNegotiatedProto);
+  registry->Register(GetCertificate);
+  registry->Register(GetX509Certificate);
+  registry->Register(GetCipher);
+  registry->Register(GetEphemeralKeyInfo);
+  registry->Register(GetFinished);
+  registry->Register(GetPeerCertificate);
+  registry->Register(GetPeerX509Certificate);
+  registry->Register(GetPeerFinished);
+  registry->Register(GetProtocol);
+  registry->Register(GetSession);
+  registry->Register(GetSharedSigalgs);
+  registry->Register(GetTLSTicket);
+  registry->Register(VerifyError);
+
+#ifdef SSL_set_max_send_fragment
+  registry->Register(SetMaxSendFragment);
+#endif  // SSL_set_max_send_fragment
+
+#ifndef OPENSSL_NO_PSK
+  registry->Register(EnablePskCallback);
+  registry->Register(SetPskIdentityHint);
+#endif  // !OPENSSL_NO_PSK
+}
+
 }  // namespace crypto
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(tls_wrap, node::crypto::TLSWrap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(
+    tls_wrap, node::crypto::TLSWrap::RegisterExternalReferences)
