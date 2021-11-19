@@ -330,7 +330,9 @@ Maybe<size_t> Buffer::Release(Consumer* consumer) {
 }
 
 JSQuicBufferConsumer::JSQuicBufferConsumer(Environment* env, Local<Object> wrap)
-    : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_JSQUICBUFFERCONSUMER) {}
+    : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_JSQUICBUFFERCONSUMER) {
+      MakeWeak();
+  }
 
 Maybe<size_t> JSQuicBufferConsumer::Process(
     Buffer::Chunk::Queue queue,
