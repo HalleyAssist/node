@@ -292,7 +292,7 @@ void Stream::OnReset(error_code app_error_code) {
 
   USE(state->stream_reset_callback()->Call(
       env()->context(),
-      session()->object(),
+      object(),
       1, &arg));
 }
 
@@ -476,6 +476,10 @@ void Stream::Destroy() {
     inbound_.End();
     ProcessInbound();
   }
+  
+  // clear inbound consumer
+  inbound_consumer_ = nullptr;
+  inbound_consumer_strong_ptr_.reset();
 
   // Remove the stream from the owning session and reset the pointer
   session()->RemoveStream(id_);
@@ -570,6 +574,7 @@ void Stream::ReceiveData(
 }
 
 void Stream::ResetStream(const QuicError& error) {
+  if (!session()) return;
   CHECK_EQ(error.type, QuicError::Type::APPLICATION);
   Session::SendSessionScope send_scope(session());
   session()->ShutdownStream(id_, error.code);
@@ -577,6 +582,7 @@ void Stream::ResetStream(const QuicError& error) {
 }
 
 void Stream::Resume() {
+  if (!session()) return;
   CHECK(session());
   Session::SendSessionScope send_scope(session());
   Debug(this, "Resuming stream %" PRIu64, id_);
@@ -588,6 +594,7 @@ bool Stream::SendHeaders(
     HeadersKind kind,
     const Local<Array>& headers,
     SendHeadersFlags flags) {
+  if (!session_) return false;
   return session_->application()->SendHeaders(id_, kind, headers, flags);
 }
 
