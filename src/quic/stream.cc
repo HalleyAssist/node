@@ -463,6 +463,10 @@ void Stream::Destroy() {
     return;
   destroyed_ = true;
 
+  //if(!state_->read_ended) {
+  //}
+  ResetStream(kQuicAppNoError);
+
   // Removes the stream from the outbound send queue
   Unschedule();
 
@@ -582,12 +586,19 @@ void Stream::ResetStream(const QuicError& error) {
 }
 
 void Stream::Resume() {
-  if (!session()) return;
-  CHECK(session());
-  Session::SendSessionScope send_scope(session());
   Debug(this, "Resuming stream %" PRIu64, id_);
-  if (outbound_source_ != nullptr && !outbound_source_->is_finished())
-    session()->ResumeStream(id_);
+  if (!session()) {
+    return;
+  }
+  CHECK(session());
+  if(outbound_source_ != nullptr){
+    if (!outbound_source_->is_finished()) {
+      Session::SendSessionScope send_scope(session());
+      session()->ResumeStream(id_);
+    } else{
+      session()->ShutdownStreamWrite(id_);
+    }
+  }
 }
 
 bool Stream::SendHeaders(
