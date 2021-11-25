@@ -97,7 +97,7 @@ void BindingState::DecreaseAllocatedSize(size_t size) {
   current_ngtcp2_memory_ -= size;
 }
 size_t BindingState::GetAllocatedSize(void) const {
-  return size;
+  return current_ngtcp2_memory_;
 }
 
 #define V(name)                                                                \
