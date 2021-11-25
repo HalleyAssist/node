@@ -36,13 +36,13 @@
 #include "ngtcp2_acktr.h"
 #include "ngtcp2_rtb.h"
 #include "ngtcp2_strm.h"
-#include "ngtcp2_mem.h"
 #include "ngtcp2_idtr.h"
 #include "ngtcp2_str.h"
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_log.h"
 #include "ngtcp2_pq.h"
 #include "ngtcp2_cc.h"
+#include "ngtcp2_bbr.h"
 #include "ngtcp2_pv.h"
 #include "ngtcp2_cid.h"
 #include "ngtcp2_buf.h"
@@ -150,17 +150,18 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED is set if transport
    parameters are received. */
 #define NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED 0x04
-/* NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT is set when a protected packet
-   is received, and decrypted successfully.  This flag is used to stop
-   retransmitting handshake packets.  It might be replaced with an
-   another mechanism when we implement key update. */
-#define NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT 0x08
+/* NGTCP2_CONN_FLAG_LOCAL_TRANSPORT_PARAMS_COMMITTED is set when a
+   local transport parameters are applied. */
+#define NGTCP2_CONN_FLAG_LOCAL_TRANSPORT_PARAMS_COMMITTED 0x08
 /* NGTCP2_CONN_FLAG_RECV_RETRY is set when a client receives Retry
    packet. */
 #define NGTCP2_CONN_FLAG_RECV_RETRY 0x10
 /* NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED is set when 0-RTT packet is
    rejected by a peer. */
 #define NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED 0x20
+/* NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED is set when the expired
+   keep-alive timer has been cancelled. */
+#define NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED 0x40
 /* NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED is set when an endpoint
    confirmed completion of handshake. */
 #define NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED 0x80
@@ -171,6 +172,10 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
    handshake retransmission has done when server receives overlapping
    Initial crypto data. */
 #define NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT 0x0200
+/* NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT indicates that the local endpoint
+   sends a QUIC packet without Fixed Bit set if a remote endpoint
+   supports Greasing QUIC Bit extension. */
+#define NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT 0x0400
 /* NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED is set when key update is
    not confirmed by the local endpoint.  That is, it has not received
    ACK frame which acknowledges packet which is encrypted with new
@@ -186,6 +191,10 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED indicates that server as peer
    verified client address.  This flag is only used by client. */
 #define NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED 0x4000
+/* NGTCP2_CONN_FLAG_EARLY_KEY_INSTALLED indicates that an early key is
+   installed.  conn->early.ckm cannot be used for this purpose because
+   it might be discarded when a certain condition is met. */
+#define NGTCP2_CONN_FLAG_EARLY_KEY_INSTALLED 0x8000
 
 typedef struct ngtcp2_crypto_data {
   ngtcp2_buf buf;
@@ -264,9 +273,9 @@ typedef struct ngtcp2_pktns {
       struct {
         /* ect0, ect1, ce are the ECN counts received in the latest
            ACK frame. */
-        size_t ect0;
-        size_t ect1;
-        size_t ce;
+        uint64_t ect0;
+        uint64_t ect1;
+        uint64_t ce;
       } ack;
     } ecn;
   } rx;
@@ -283,6 +292,8 @@ typedef struct ngtcp2_pktns {
       ngtcp2_crypto_km *ckm;
       /* hp_ctx is cipher context for packet header protection. */
       ngtcp2_crypto_cipher_ctx hp_ctx;
+      /* data is the submitted crypto data. */
+      ngtcp2_buf_chain *data;
     } tx;
 
     struct {
@@ -314,10 +325,8 @@ struct ngtcp2_conn {
   /* rcid is a connection ID present in Initial or 0-RTT packet from
      client as destination connection ID.  Server uses this field to
      check that duplicated Initial or 0-RTT packet are indeed sent to
-     this connection.  It is also sent to client as
-     original_destination_connection_id transport parameter.  Client
-     uses this field to validate original_destination_connection_id
-     transport parameter if no Retry packet is involved. */
+     this connection.  Client uses this field to validate
+     original_destination_connection_id transport parameter. */
   ngtcp2_cid rcid;
   /* oscid is the source connection ID initially used by the local
      endpoint. */
@@ -399,6 +408,16 @@ struct ngtcp2_conn {
          validation period. */
       size_t dgram_sent;
     } ecn;
+
+    struct {
+      /* pktlen is the number of bytes written before calling
+         ngtcp2_conn_update_pkt_tx_time which resets this field to
+         0. */
+      size_t pktlen;
+      /* next_ts is the time to send next packet.  It is UINT64_MAX if
+         packet pacing is disabled or expired.*/
+      ngtcp2_tstamp next_ts;
+    } pacing;
   } tx;
 
   struct {
@@ -427,6 +446,21 @@ struct ngtcp2_conn {
     /* discard_started_ts is the timestamp when the timer to discard
        early key has started.  Used by server only. */
     ngtcp2_tstamp discard_started_ts;
+    /* transport_params is the values remembered by client from the
+       previous session.  These are set by
+       ngtcp2_conn_set_early_remote_transport_params().  Server does
+       not use this field.  Server must not set values for these
+       parameters that are smaller than the remembered values. */
+    struct {
+      uint64_t initial_max_streams_bidi;
+      uint64_t initial_max_streams_uni;
+      uint64_t initial_max_stream_data_bidi_local;
+      uint64_t initial_max_stream_data_bidi_remote;
+      uint64_t initial_max_stream_data_uni;
+      uint64_t initial_max_data;
+      uint64_t active_connection_id_limit;
+      uint64_t max_datagram_frame_size;
+    } transport_params;
   } early;
 
   struct {
@@ -534,9 +568,20 @@ struct ngtcp2_conn {
     int pkt_empty;
     int hd_logged;
     uint8_t rtb_entry_flags;
-    int was_client_initial;
     ngtcp2_ssize hs_spktlen;
+    int require_padding;
   } pkt;
+
+  struct {
+    /* last_ts is a timestamp when a last packet is sent or received
+       on a current path. */
+    ngtcp2_tstamp last_ts;
+    /* timeout is keep-alive timeout.  When it expires, a packet
+       should be sent to a current path to keep connection alive.  It
+       might be used to keep NAT binding intact.  If 0 is set,
+       keep-alive timer is disabled. */
+    ngtcp2_duration timeout;
+  } keep_alive;
 
   ngtcp2_map strms;
   ngtcp2_conn_stat cstat;
@@ -583,6 +628,8 @@ typedef struct ngtcp2_vmsg_datagram {
   const ngtcp2_vec *data;
   /* datacnt is the number of ngtcp2_vec pointed by data. */
   size_t datacnt;
+  /* dgram_id is an opaque identifier chosen by an application. */
+  uint64_t dgram_id;
   /* flags is bitwise OR of zero or more of
      NGTCP2_WRITE_DATAGRAM_FLAG_*. */
   uint32_t flags;
@@ -647,8 +694,7 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                             uint64_t app_error_code);
+int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm);
 
 /*
  * ngtcp2_conn_close_stream closes stream |strm| if no further
@@ -664,8 +710,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                          uint64_t app_error_code);
+int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm);
 
 /*
  * ngtcp2_conn_update_rtt updates RTT measurements.  |rtt| is a latest
@@ -721,9 +766,9 @@ int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm);
 ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn);
 
 ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
-                                    ngtcp2_pkt_info *pi, uint8_t *dest,
-                                    size_t destlen, ngtcp2_vmsg *vmsg,
-                                    ngtcp2_tstamp ts);
+                                    int pkt_info_version, ngtcp2_pkt_info *pi,
+                                    uint8_t *dest, size_t destlen,
+                                    ngtcp2_vmsg *vmsg, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_write_single_frame_pkt writes a packet which contains |fr|
@@ -818,5 +863,7 @@ void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
  * UINT64_MAX if loss detection timer is not armed.
  */
 ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn);
+
+ngtcp2_duration ngtcp2_conn_compute_pto(ngtcp2_conn *conn, ngtcp2_pktns *pktns);
 
 #endif /* NGTCP2_CONN_H */

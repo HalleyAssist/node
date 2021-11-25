@@ -182,11 +182,14 @@ void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
    consumes congestion window. */
 #define NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED 0x08
 /* NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED indicates that the entry
-   has been marked lost and scheduled to retransmit. */
+   has been marked lost and, optionally, scheduled to retransmit. */
 #define NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED 0x10
 /* NGTCP2_RTB_ENTRY_FLAG_ECN indicates that the entry is included in a
    UDP datagram with ECN marking. */
 #define NGTCP2_RTB_ENTRY_FLAG_ECN 0x20
+/* NGTCP2_RTB_ENTRY_FLAG_DATAGRAM indicates that the entry includes
+   DATAGRAM frame. */
+#define NGTCP2_RTB_ENTRY_FLAG_DATAGRAM 0x40
 
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 
@@ -344,7 +347,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
  */
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                                ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat,
-                               ngtcp2_duration pto, ngtcp2_tstamp ts);
+                               ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_remove_expired_lost_pkt removes expired lost packet.
@@ -366,6 +369,11 @@ ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(ngtcp2_rtb *rtb);
  */
 int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                           ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat);
+
+/*
+ * ngtcp2_rtb_remove_early_data removes all entries for 0RTT packets.
+ */
+void ngtcp2_rtb_remove_early_data(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_rtb_empty returns nonzero if |rtb| have no entry.

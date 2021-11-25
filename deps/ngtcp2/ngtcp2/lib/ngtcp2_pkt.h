@@ -258,12 +258,12 @@ typedef struct ngtcp2_stop_sending {
 
 typedef struct ngtcp2_path_challenge {
   uint8_t type;
-  uint8_t data[8];
+  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
 } ngtcp2_path_challenge;
 
 typedef struct ngtcp2_path_response {
   uint8_t type;
-  uint8_t data[8];
+  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
 } ngtcp2_path_response;
 
 typedef struct ngtcp2_crypto {
@@ -293,6 +293,8 @@ typedef struct ngtcp2_handshake_done {
 
 typedef struct ngtcp2_datagram {
   uint8_t type;
+  /* dgram_id is an opaque identifier chosen by an application. */
+  uint64_t dgram_id;
   /* datacnt is the number of elements that data contains. */
   size_t datacnt;
   /* data is a pointer to ngtcp2_vec array that stores data. */
@@ -1123,7 +1125,7 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr);
  * small to write STREAM frame, this function returns (size_t)-1.
  */
 size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,
-                                     size_t len, size_t left);
+                                     uint64_t len, size_t left);
 
 /*
  * ngtcp2_pkt_crypto_max_datalen returns the maximum number of bytes
