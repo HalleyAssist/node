@@ -242,6 +242,7 @@ Path::Path(
       remote->data(),
       remote->length(),
       nullptr);
+  
 }
 
 StatelessResetToken::StatelessResetToken(
@@ -334,7 +335,7 @@ void InitializeCallbacks(const FunctionCallbackInfo<Value>& args) {
 static void GetMemoryUsage(const FunctionCallbackInfo<Value>& args){
   Environment* env = Environment::GetCurrent(args);
   BindingState* state = BindingState::Get(env);
-  BigInt ret = BigInt::New(env->isolate(), static_cast<int64_t>(state->GetAllocatedSize()));
+  Local<BigInt> ret = BigInt::New(env->isolate(), static_cast<int64_t>(state->GetAllocatedSize()));
   args.GetReturnValue().Set(ret);
 }
 
