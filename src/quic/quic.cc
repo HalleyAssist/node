@@ -34,6 +34,7 @@ using v8::Local;
 using v8::Object;
 using v8::String;
 using v8::Value;
+using v8::BigInt;
 
 namespace quic {
 #if NODE_OPENSSL_HAS_QUIC
@@ -94,6 +95,9 @@ void BindingState::IncreaseAllocatedSize(size_t size) {
 
 void BindingState::DecreaseAllocatedSize(size_t size) {
   current_ngtcp2_memory_ -= size;
+}
+size_t BindingState::GetAllocatedSize(void) const {
+  return size;
 }
 
 #define V(name)                                                                \
@@ -325,6 +329,17 @@ void InitializeCallbacks(const FunctionCallbackInfo<Value>& args) {
   state->initialized = true;
 }
 
+
+
+static void GetMemoryUsage(const FunctionCallbackInfo<Value>& args){
+  Environment* env = Environment::GetCurrent(args);
+  BindingState* state = BindingState::Get(env);
+  BigInt ret = BigInt::New(env()->isolate(), static_cast<int64_t>(state->GetAllocatedSize()));
+  Local<Value> val;
+  ret.ToLocal(&val);
+  args.GetReturnValue().Set(val);
+}
+
 template <ngtcp2_crypto_side side>
 void CreateSecureContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -358,6 +373,10 @@ void Initialize(
                  CreateSecureContext<NGTCP2_CRYPTO_SIDE_CLIENT>);
   env->SetMethod(target, "createServerSecureContext",
                  CreateSecureContext<NGTCP2_CRYPTO_SIDE_SERVER>);
+  env->SetMethod(target, "getMemoryUsage", GetMemoryUsage);
+
+
+      
 
   constexpr uint32_t NGTCP2_PREFERRED_ADDRESS_USE =
       static_cast<uint32_t>(PreferredAddress::Policy::USE);
