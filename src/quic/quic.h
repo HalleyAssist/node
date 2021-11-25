@@ -201,6 +201,7 @@ class BindingState final : public BaseObject,
   void CheckAllocatedSize(size_t previous_size) const;
   void IncreaseAllocatedSize(size_t size);
   void DecreaseAllocatedSize(size_t size);
+  size_t GetAllocatedSize(void) const;
 
   bool warn_trace_tls = true;
   bool initialized = false;
