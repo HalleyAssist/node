@@ -496,6 +496,10 @@ Endpoint::SendWrap::SendWrap(
   MakeWeak();
 }
 
+Endpoint::SendWrap::~SendWrap(){
+  packet_.reset();
+}
+
 void Endpoint::SendWrap::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("destination", destination_);
   tracker->TrackField("packet", packet_);
@@ -864,15 +868,14 @@ bool Endpoint::MaybeStatelessReset(
 }
 
 uv_buf_t Endpoint::OnAlloc(size_t suggested_size) {
-  return AllocatedBuffer::AllocateManaged(env(), suggested_size).release();
+  return env()->allocate_managed_buffer(suggested_size);
 }
 
 void Endpoint::OnReceive(
     size_t nread,
-    const uv_buf_t& buf,
+    std::shared_ptr<BackingStore> store,
     const std::shared_ptr<SocketAddress>& remote_address) {
 
-  AllocatedBuffer buffer(env(), buf);
   // When diagnostic packet loss is enabled, the packet will be randomly
   // dropped based on the rx_loss probability.
   if (UNLIKELY(is_diagnostic_packet_loss(config_.rx_loss))) {
@@ -888,8 +891,6 @@ void Endpoint::OnReceive(
   // }
 
   IncrementStat(&EndpointStats::bytes_received, nread);
-
-  std::shared_ptr<BackingStore> store = buffer.ReleaseBackingStore();
   if (UNLIKELY(!store)) {
     // TODO(@jasnell): Send immediate close?
     ProcessReceiveFailure(UV_ENOMEM);
@@ -1496,14 +1497,30 @@ void Endpoint::UDP::OnReceive(
     const uv_buf_t* buf,
     const sockaddr* addr,
     unsigned int flags) {
+      OnReceive(handle, nread, *buf, addr, flags);
+}
+
+void Endpoint::UDP::OnReceive(
+    uv_udp_t* handle,
+    ssize_t nread,
+    const uv_buf_t& buf,
+    const sockaddr* addr,
+    unsigned int flags) {
+      
   UDP* udp = ContainerOf(&Endpoint::UDP::handle_, handle);
+
+  std::unique_ptr<BackingStore> store = udp->env()->release_managed_buffer(buf);
+
   if (nread < 0) {
     udp->endpoint_->ProcessReceiveFailure(static_cast<int>(nread));
     return;
+  } else if (nread == 0) {
+    // Nothing to do it in this case.
+    return;
+  } else {
+    CHECK_LE(static_cast<size_t>(nread), store->ByteLength());
+    store = BackingStore::Reallocate(udp->env()->isolate(), std::move(store), nread);
   }
-
-  // Nothing to do it in this case.
-  if (nread == 0) return;
 
   Debug(udp, "Receiving UDP packet. %llu bytes.", nread);
 
@@ -1516,7 +1533,7 @@ void Endpoint::UDP::OnReceive(
 
   udp->endpoint_->OnReceive(
       static_cast<size_t>(nread),
-      *buf,
+      std::move(store),
       std::make_shared<SocketAddress>(addr));
 }
 

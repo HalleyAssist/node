@@ -150,6 +150,7 @@ size_t Buffer::Chunk::Seek(size_t amount) {
 size_t Buffer::Chunk::Acknowledge(size_t amount) {
   amount = std::min(amount, unacknowledged_);
   unacknowledged_ -= amount;
+  CHECK_GE(unacknowledged_, 0);
   return amount;
 }
 

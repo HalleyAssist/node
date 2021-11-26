@@ -303,6 +303,8 @@ class Endpoint final : public MemoryRetainer,
       std::unique_ptr<Packet> packet,
       BaseObjectPtr<EndpointWrap> endpoint);
 
+    ~SendWrap() override;
+
     inline void Attach(const BaseObjectPtr<BaseObject>& strong_ptr) {
       strong_ptr_ = strong_ptr;
     }
@@ -375,6 +377,12 @@ class Endpoint final : public MemoryRetainer,
         size_t suggested_size,
         uv_buf_t* buf);
 
+    static void OnReceive(
+        uv_udp_t* handle,
+        ssize_t nread,
+        const uv_buf_t& buf,
+        const sockaddr* addr,
+        unsigned int flags);
     static void OnReceive(
         uv_udp_t* handle,
         ssize_t nread,
@@ -663,7 +671,7 @@ class Endpoint final : public MemoryRetainer,
   uv_buf_t OnAlloc(size_t suggested_size);
   void OnReceive(
       size_t nread,
-      const uv_buf_t& buf,
+      std::shared_ptr<v8::BackingStore> store,
       const std::shared_ptr<SocketAddress>& address);
 
   void ProcessOutbound();

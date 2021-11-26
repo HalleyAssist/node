@@ -1655,7 +1655,7 @@ void Session::Destroy() {
     retransmit_.Stop();
   }
 
-  // The Session instances are kept alive usingBaseObjectPtr. The
+  // The Session instances are kept alive using BaseObjectPtr. The
   // only persistent BaseObjectPtr is the map in the associated
   // Endpoint. Removing the Session from the Endpoint will free
   // that pointer, allowing the Session to be deconstructed once
@@ -3313,6 +3313,7 @@ bool Session::Application::SendPendingData() {
           pos += ndatalen;
           continue;
       }
+      packet.reset();
       session()->set_last_error(kQuicInternalError);
       return false;
     }
