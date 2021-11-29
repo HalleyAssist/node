@@ -59,7 +59,8 @@ using v8::Value;
   V(7, peak_malloced_memory, kPeakMallocedMemoryIndex)                        \
   V(8, does_zap_garbage, kDoesZapGarbageIndex)                                \
   V(9, number_of_native_contexts, kNumberOfNativeContextsIndex)               \
-  V(10, number_of_detached_contexts, kNumberOfDetachedContextsIndex)
+  V(10, number_of_detached_contexts, kNumberOfDetachedContextsIndex)          \
+  V(11, external_memory, kExternalMemoryIndex)                                \
 
 #define V(a, b, c) +1
 static constexpr size_t kHeapStatisticsPropertiesCount =
