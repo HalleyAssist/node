@@ -595,9 +595,9 @@ void Stream::Resume() {
     if (!outbound_source_->is_finished()) {
       Session::SendSessionScope send_scope(session());
       session()->ResumeStream(id_);
-    } else{
+    } /*else{
       session()->ShutdownStreamWrite(id_);
-    }
+    } */
   }
 }
 
