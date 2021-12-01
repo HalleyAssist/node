@@ -2084,9 +2084,9 @@ void Session::SelectPreferredAddress(
 bool Session::SendConnectionClose() {
   CHECK(!NgCallbackScope::InNgCallbackScope(this));
 
-  // Do not send any frames at all if we're in the draining period
-  // or in the middle of a silent close
-  if (is_in_draining_period() || state_->silent_close)
+  // Do not send any frames at all if we're in the draining period,
+  // in the middle of a silent close or already destroyed.
+  if (is_in_draining_period() || state_->silent_close || is_destroyed())
     return true;
 
   // The specific handling of connection close varies for client
