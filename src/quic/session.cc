@@ -2007,7 +2007,7 @@ bool Session::ReceivePacket(
 
   uint64_t now = uv_hrtime();
   SetStat(&SessionStats::received_at, now);
-  ngtcp2_pkt_info pi;  // Not used but required.
+  ngtcp2_pkt_info pi = {};  // Not used but required.
   int err = ngtcp2_conn_read_pkt(connection(), path, &pi, data, nread, now);
   if (err < 0) {
     switch (err) {
