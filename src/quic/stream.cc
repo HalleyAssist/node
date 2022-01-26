@@ -247,14 +247,15 @@ void Stream::AttachInboundConsumer(
 void Stream::AttachOutboundSource(Buffer::Source* source) {
   Debug(this, "%s data source",
         source != nullptr ? "Attaching" : "Clearing");
+  Unschedule();
   outbound_source_ = source;
   if (source != nullptr) {
     outbound_source_strong_ptr_ = source->GetStrongPtr();
     source->set_owner(this);
+    Resume();
   } else {
     outbound_source_strong_ptr_.reset();
   }
-  Resume();
 }
 
 void Stream::BeginHeaders(HeadersKind kind) {
@@ -467,19 +468,13 @@ void Stream::Destroy() {
   //}
   ResetStream(kQuicAppNoError);
 
-  // Removes the stream from the outbound send queue
-  Unschedule();
-
-  // Detach stream sources...
-  if (outbound_source_ != nullptr) {
-    outbound_source_ = nullptr;
-    outbound_source_strong_ptr_.reset();
-  }
-
   if (!inbound_.is_ended()) {
     inbound_.End();
     ProcessInbound();
   }
+
+  // Removes the stream from the outbound send queue
+  AttachOutboundSource(nullptr);
   
   // clear inbound consumer
   inbound_consumer_ = nullptr;
@@ -624,7 +619,7 @@ void Stream::set_final_size(uint64_t final_size) {
 }
 
 void Stream::Schedule(Queue* queue) {
-  if (stream_queue_.IsEmpty()) {
+  if (stream_queue_.IsEmpty() && outbound_source_ != nullptr) {
     queue->PushBack(this);
   }
 }

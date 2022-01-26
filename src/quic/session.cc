@@ -3221,6 +3221,7 @@ bool Session::Application::Initialize() {
   return !needs_init_;
 }
 
+
 bool Session::Application::SendPendingData() {
   // The maximum number of packets to send per call
   static constexpr size_t kMaxPackets = 16;
@@ -3273,10 +3274,6 @@ bool Session::Application::SendPendingData() {
     }
     if (nwrite <= 0) {
       switch (nwrite) {
-        case 0:
-          if (stream_data.id >= 0)
-            ResumeStream(stream_data.id);
-          goto congestion_limited;
         case NGTCP2_ERR_PKT_NUM_EXHAUSTED:
           // There is a finite number of packets that can be sent
           // per connection. Once those are exhausted, there's
@@ -3293,9 +3290,11 @@ bool Session::Application::SendPendingData() {
           if (session()->max_data_left() == 0) {
             if (stream_data.id >= 0) {
               Debug(session(), "Resuming %llu after block", stream_data.id);
-              ResumeStream(stream_data.id);
+              // actual resumption to be performed in nwrite==0 block
             }
-            goto congestion_limited;
+
+            nwrite = 0;
+            break;
           }
           CHECK_LE(ndatalen, 0);
           continue;
@@ -3310,12 +3309,28 @@ bool Session::Application::SendPendingData() {
         case NGTCP2_ERR_WRITE_MORE:
           CHECK_GT(ndatalen, 0);
           CHECK(StreamCommit(&stream_data, ndatalen));
-          pos += ndatalen;
           continue;
       }
-      packet.reset();
-      session()->set_last_error(kQuicInternalError);
-      return false;
+
+      if(nwrite != 0){
+        packet.reset();
+        session()->set_last_error(kQuicInternalError);
+        return false;
+      } else {
+          if (stream_data.id >= 0)
+            ResumeStream(stream_data.id);
+
+          // We are either congestion limited or done.
+          if (pos - packet->data()) {
+            // Some data was serialized into the packet. We need to send it.
+            packet->set_length(pos - packet->data());
+            Debug(session(), "Congestion limited, but %" PRIu64 " bytes pending",
+                  packet->length());
+            if (!session()->SendPacket(std::move(packet), path))
+              return false;
+          }
+          return true;
+      }
     }
 
     pos += nwrite;
@@ -3325,8 +3340,8 @@ bool Session::Application::SendPendingData() {
     if (stream_data.id >= 0 && ndatalen < 0)
       ResumeStream(stream_data.id);
 
+    packet->set_length(pos - packet->data());
     Debug(session(), "Sending %" PRIu64 " bytes in serialized packet", nwrite);
-    packet->set_length(nwrite);
     if (!session()->SendPacket(std::move(packet), path)) {
       Debug(session(), "-- Failed to send packet");
       return false;
@@ -3338,18 +3353,6 @@ bool Session::Application::SendPendingData() {
       break;
     }
     Debug(session(), "-- Looping");
-  }
-  return true;
-
-congestion_limited:
-  // We are either congestion limited or done.
-  if (pos - packet->data()) {
-    // Some data was serialized into the packet. We need to send it.
-    packet->set_length(pos - packet->data());
-    Debug(session(), "Congestion limited, but %" PRIu64 " bytes pending",
-          packet->length());
-    if (!session()->SendPacket(std::move(packet), path))
-      return false;
   }
   return true;
 }
@@ -3517,12 +3520,13 @@ bool DefaultApplication::ReceiveStreamData(
 }
 
 int DefaultApplication::GetStreamData(StreamData* stream_data) {
-  if (stream_queue_.IsEmpty())
-    return 0;
-
   Stream* stream = stream_queue_.PopFront();
-  CHECK_NOT_NULL(stream);
   stream_data->stream.reset(stream);
+  if (stream == nullptr) {
+    stream_data->id = -1;
+    return 0;
+  }
+  CHECK(!stream->is_destroyed());
   stream_data->id = stream->id();
   auto next = [&](
       int status,
@@ -3541,6 +3545,7 @@ int DefaultApplication::GetStreamData(StreamData* stream_data) {
 
     stream_data->count = count;
     if (count > 0) {
+      
       stream->Schedule(&stream_queue_);
       stream_data->remaining = get_length(data, count);
     } else {

@@ -548,8 +548,8 @@ ArrayBufferViewSource::ArrayBufferViewSource(
     : Buffer::Source(env),
       BaseObject(env, wrap),
       buffer_(store, length, offset) {
-  MakeWeak();
   SetDonePromise();
+  MakeWeak();
 }
 
 int ArrayBufferViewSource::DoPull(
@@ -587,8 +587,8 @@ void StreamSource::New(const FunctionCallbackInfo<Value>& args) {
 StreamSource::StreamSource(Environment* env, Local<Object> wrap)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_STREAMSOURCE),
       Buffer::Source(env) {
-  MakeWeak();
   SetDonePromise();
+  MakeWeak();
 }
 
 int StreamSource::DoPull(
@@ -684,9 +684,9 @@ StreamBaseSource::StreamBaseSource(
       Buffer::Source(env),
       resource_(resource),
       strong_ptr_(std::move(strong_ptr)) {
-  MakeWeak();
   SetDonePromise();
   CHECK_NOT_NULL(resource);
+  MakeWeak();
 }
 
 StreamBaseSource::~StreamBaseSource() {
@@ -806,8 +806,8 @@ BlobSource::BlobSource(
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_BLOBSOURCE),
       Buffer::Source(env),
       buffer_(blob) {
-  MakeWeak();
   SetDonePromise();
+  MakeWeak();
 }
 
 int BlobSource::DoPull(
