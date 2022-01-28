@@ -3241,19 +3241,20 @@ bool Session::Application::SendPendingData() {
       return false;
     }
 
-    // If stream_data.id is -1, then we're not serializing any data for any
-    // specific stream. We still need to process QUIC session packets tho.
-    if (stream_data.id > -1)
-      Debug(session(), "Serializing packets for stream id %" PRId64,
-            stream_data.id);
-    else
-      Debug(session(), "Serializing session packets");
-
     // If the packet was sent previously, then packet will have been reset.
-    if (!packet) {
+    if (!pos) {
       packet = CreateStreamDataPacket();
       pos = packet->data();
     }
+
+    // If stream_data.id is -1, then we're not serializing any data for any
+    // specific stream. We still need to process QUIC session packets tho.
+    if (stream_data.id > -1) {
+      Debug(session(), "Serializing packets for stream id %" PRId64,
+            stream_data.id);
+      packet->AddRetained(stream_data.stream->GetOutboundSource());
+    } else
+      Debug(session(), "Requesting serialized packet flush");
 
     ssize_t nwrite = WriteVStream(&path, pos, &ndatalen, stream_data);
     if (stream_data.id >= 0) {
@@ -3312,25 +3313,26 @@ bool Session::Application::SendPendingData() {
           continue;
       }
 
-      if(nwrite != 0){
+      if(nwrite != 0){ // -ve response i.e error
         packet.reset();
         session()->set_last_error(kQuicInternalError);
         return false;
-      } else {
-          if (stream_data.id >= 0)
-            ResumeStream(stream_data.id);
-
-          // We are either congestion limited or done.
-          if (pos - packet->data()) {
-            // Some data was serialized into the packet. We need to send it.
-            packet->set_length(pos - packet->data());
-            Debug(session(), "Congestion limited, but %" PRIu64 " bytes pending",
-                  packet->length());
-            if (!session()->SendPacket(std::move(packet), path))
-              return false;
-          }
-          return true;
       }
+      
+      // 0 bytes in this sending operation
+      if (stream_data.id >= 0)
+        ResumeStream(stream_data.id);
+
+      // We are either congestion limited or done.
+      if (pos - packet->data()) {
+        // Some data was serialized into the packet. We need to send it.
+        packet->set_length(pos - packet->data());
+        Debug(session(), "Congestion limited, but %" PRIu64 " bytes pending",
+              packet->length());
+        if (!session()->SendPacket(std::move(packet), path))
+          return false;
+      }
+      return true;
     }
 
     pos += nwrite;
@@ -3346,7 +3348,6 @@ bool Session::Application::SendPendingData() {
       Debug(session(), "-- Failed to send packet");
       return false;
     }
-    packet.reset();
     pos = nullptr;
     if (++packets_sent == kMaxPackets) {
       Debug(session(), "-- Max packets sent");

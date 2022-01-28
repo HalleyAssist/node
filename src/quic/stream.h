@@ -187,6 +187,8 @@ class Stream final : public AsyncWrap,
   // Attaches an outbound Buffer::Source
   void AttachOutboundSource(Buffer::Source* source);
 
+  BaseObjectPtr<BaseObject> GetOutboundSource() const;
+
   // Signals the beginning of a new block of headers.
   void BeginHeaders(HeadersKind kind);
 

@@ -225,6 +225,7 @@ bool PreferredAddress::Resolve(
 
 void Packet::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("allocated", ptr_ != data_ ? len_ : 0);
+  tracker->TrackField("retained", retained);
 }
 
 Path::Path(

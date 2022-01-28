@@ -398,11 +398,16 @@ class Packet final : public MemoryRetainer {
   SET_MEMORY_INFO_NAME(Packet);
   SET_SELF_SIZE(Packet);
 
+  inline void AddRetained(BaseObjectPtr<BaseObject> retain){
+    retained.push_back(retain);
+  }
+
  private:
   uint8_t data_[kDefaultMaxPacketLength];
   uint8_t* ptr_ = nullptr;
   size_t len_ = kDefaultMaxPacketLength;
   const char* diagnostic_label_ = nullptr;
+  std::vector<BaseObjectPtr<BaseObject>> retained;
 };
 
 // A utility class that wraps ngtcp2_path to adapt it to work with SocketAddress

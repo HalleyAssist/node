@@ -336,6 +336,10 @@ void Stream::Commit(size_t amount) {
   CHECK_LE(actual, amount);
 }
 
+BaseObjectPtr<BaseObject> Stream::GetOutboundSource() const {
+  return outbound_source_strong_ptr_;
+}
+
 int Stream::DoPull(
     bob::Next<ngtcp2_vec> next,
     int options,
