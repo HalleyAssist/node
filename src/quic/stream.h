@@ -245,6 +245,7 @@ class Stream final : public AsyncWrap,
       SendHeadersFlags flags = SendHeadersFlags::NONE);
 
   inline bool is_destroyed() const { return destroyed_; }
+  inline bool is_destroying() const { return destroying_; }
 
   inline Direction direction() const {
     return id_ & 0b10 ?
@@ -291,6 +292,7 @@ class Stream final : public AsyncWrap,
   AliasedStruct<State> state_;
   stream_id id_;
   bool destroyed_ = false;
+  bool destroying_ = false;
 
   // The outbound_source_ provides the data that is to be
   // sent by this Stream. After the source is read

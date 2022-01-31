@@ -464,21 +464,23 @@ void Stream::AttachConsumer(const FunctionCallbackInfo<Value>& args) {
 }
 
 void Stream::Destroy() {
-  if (destroyed_)
+  if (destroyed_ || destroying_)
     return;
-  destroyed_ = true;
 
-  //if(!state_->read_ended) {
-  //}
-  ResetStream(kQuicAppNoError);
+  destroying_ = true;
 
   if (!inbound_.is_ended()) {
     inbound_.End();
     ProcessInbound();
   }
 
+  ResetStream(kQuicAppNoError);
+
   // Removes the stream from the outbound send queue
   AttachOutboundSource(nullptr);
+  
+  // Until this point it might be OK to call certain methods
+  destroyed_ = true;
   
   // clear inbound consumer
   inbound_consumer_ = nullptr;
@@ -539,7 +541,7 @@ void Stream::ReceiveData(
     const uint8_t* data,
     size_t datalen,
     uint64_t offset) {
-  CHECK(!is_destroyed());
+  CHECK(!is_destroying());
   Debug(this, "Receiving %d bytes. Final? %s",
         datalen,
         flags & NGTCP2_STREAM_DATA_FLAG_FIN ? "yes" : "no");
