@@ -41,6 +41,6 @@
  * number, 8 bits for minor and 8 bits for patch. Version 1.2.3
  * becomes 0x010203.
  */
-#define NGTCP2_VERSION_NUM 0x000700
+#define NGHTTP3_VERSION_NUM 0x000700
 
 #endif /* NGHTTP3_VERSION_H */
