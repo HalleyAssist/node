@@ -46,13 +46,20 @@ ac.abort();
 console.log(ac.signal.aborted);  // Prints True
 ```
 
-### `abortController.abort()`
+### `abortController.abort([reason])`
 
 <!-- YAML
 added:
   - v15.0.0
   - v14.17.0
+changes:
+  - version: v17.2.0
+    pr-url: https://github.com/nodejs/node/pull/40807
+    description: Added the new optional reason argument.
 -->
+
+* `reason` {any} An optional reason, retrievable on the `AbortSignal`s
+  `reason` property.
 
 Triggers the abort signal, causing the `abortController.signal` to emit
 the `'abort'` event.
@@ -80,17 +87,33 @@ added:
 The `AbortSignal` is used to notify observers when the
 `abortController.abort()` method is called.
 
-#### Static method: `AbortSignal.abort()`
+#### Static method: `AbortSignal.abort([reason])`
 
 <!-- YAML
 added:
   - v15.12.0
   - v14.17.0
+changes:
+  - version: v17.2.0
+    pr-url: https://github.com/nodejs/node/pull/40807
+    description: Added the new optional reason argument.
 -->
 
+* `reason`: {any}
 * Returns: {AbortSignal}
 
 Returns a new already aborted `AbortSignal`.
+
+#### Static method: `AbortSignal.timeout(delay)`
+
+<!-- YAML
+added: v17.3.0
+-->
+
+* `delay` {number} The number of milliseconds to wait before triggering
+  the AbortSignal.
+
+Returns a new `AbortSignal` which will be aborted in `delay` milliseconds.
 
 #### Event: `'abort'`
 
@@ -151,6 +174,30 @@ added:
 
 An optional callback function that may be set by user code to be notified
 when the `abortController.abort()` function has been called.
+
+#### `abortSignal.reason`
+
+<!-- YAML
+added: v17.2.0
+-->
+
+* Type: {any}
+
+An optional reason specified when the `AbortSignal` was triggered.
+
+```js
+const ac = new AbortController();
+ac.abort(new Error('boom!'));
+console.log(ac.signal.reason);  // Error('boom!');
+```
+
+#### `abortSignal.throwIfAborted()`
+
+<!-- YAML
+added: v17.3.0
+-->
+
+If `abortSignal.aborted` is `true`, throws `abortSignal.reason`.
 
 ## Class: `Buffer`
 
@@ -234,6 +281,43 @@ added: v0.1.100
 
 Used to print to stdout and stderr. See the [`console`][] section.
 
+## `Crypto`
+
+<!-- YAML
+added: v17.6.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of {Crypto}. This global is available
+only if the Node.js binary was compiled with including support for the
+`crypto` module.
+
+## `crypto`
+
+<!-- YAML
+added: v17.6.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of the [Web Crypto API][].
+
+## `CryptoKey`
+
+<!-- YAML
+added: v17.6.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of {CryptoKey}. This global is available
+only if the Node.js binary was compiled with including support for the
+`crypto` module.
+
 ## `Event`
 
 <!-- YAML
@@ -268,6 +352,28 @@ A browser-compatible implementation of the `EventTarget` class. See
 
 This variable may appear to be global but is not. See [`exports`][].
 
+## `fetch`
+
+<!-- YAML
+added: v17.5.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of the [`fetch()`][] function.
+
+## Class `FormData`
+
+<!-- YAML
+added: v17.6.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of {FormData}.
+
 ## `global`
 
 <!-- YAML
@@ -282,6 +388,17 @@ In browsers, the top-level scope is the global scope. This means that
 within the browser `var something` will define a new global variable. In
 Node.js this is different. The top-level scope is not the global scope;
 `var something` inside a Node.js module will be local to that module.
+
+## Class `Headers`
+
+<!-- YAML
+added: v17.5.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of {Headers}.
 
 ## `MessageChannel`
 
@@ -377,6 +494,28 @@ DataHandler.prototype.load = async function load(key) {
 
 This variable may appear to be global but is not. See [`require()`][].
 
+## `Response`
+
+<!-- YAML
+added: v17.5.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of {Response}.
+
+## `Request`
+
+<!-- YAML
+added: v17.5.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of {Request}.
+
 ## `setImmediate(callback[, ...args])`
 
 <!-- YAML
@@ -416,6 +555,19 @@ added: v17.0.0
 <!-- type=global -->
 
 The WHATWG [`structuredClone`][] method.
+
+## `SubtleCrypto`
+
+<!-- YAML
+added: v17.6.0
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of {SubtleCrypto}. This global is available
+only if the Node.js binary was compiled with including support for the
+`crypto` module.
 
 ## `DOMException`
 
@@ -481,6 +633,9 @@ The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
+[Web Crypto API]: webcrypto.md
+[`--experimental-fetch`]: cli.md#--experimental-fetch
+[`--experimental-global-webcrypto`]: cli.md#--experimental-global-webcrypto
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
@@ -500,6 +655,7 @@ The object that acts as the namespace for all W3C
 [`clearTimeout`]: timers.md#cleartimeouttimeout
 [`console`]: console.md
 [`exports`]: modules.md#exports
+[`fetch()`]: https://developer.mozilla.org/en-US/docs/Web/API/fetch
 [`module`]: modules.md#module
 [`perf_hooks.performance`]: perf_hooks.md#perf_hooksperformance
 [`process.nextTick()`]: process.md#processnexttickcallback-args

@@ -107,8 +107,9 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> conditions;
   std::string dns_result_order;
   bool enable_source_maps = false;
-  bool experimental_json_modules = false;
-  bool experimental_modules = false;
+  bool experimental_fetch = false;
+  bool experimental_global_web_crypto = false;
+  bool experimental_https_modules = false;
   std::string experimental_specifier_resolution;
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
@@ -228,6 +229,7 @@ class PerProcessOptions : public Options {
   bool zero_fill_all_buffers = false;
   bool debug_arraybuffer_allocations = false;
   std::string disable_proto;
+  bool build_snapshot;
 
   std::vector<std::string> security_reverts;
   bool print_bash_completion = false;

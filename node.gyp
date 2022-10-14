@@ -7,6 +7,7 @@
     'node_use_dtrace%': 'false',
     'node_use_etw%': 'false',
     'node_no_browser_globals%': 'false',
+    'node_snapshot_main%': '',
     'node_use_node_snapshot%': 'false',
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
@@ -51,6 +52,7 @@
       'deps/acorn/acorn-walk/dist/walk.js',
       'deps/cjs-module-lexer/lexer.js',
       'deps/cjs-module-lexer/dist/lexer.js',
+      'deps/undici/undici.js',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'mkcodecache_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkcodecache<(EXECUTABLE_SUFFIX)',
@@ -314,23 +316,47 @@
           'dependencies': [
             'node_mksnapshot',
           ],
-          'actions': [
-            {
-              'action_name': 'node_mksnapshot',
-              'process_outputs_as_sources': 1,
-              'inputs': [
-                '<(node_mksnapshot_exec)',
+          'conditions': [
+            ['node_snapshot_main!=""', {
+              'actions': [
+                {
+                  'action_name': 'node_mksnapshot',
+                  'process_outputs_as_sources': 1,
+                  'inputs': [
+                    '<(node_mksnapshot_exec)',
+                    '<(node_snapshot_main)',
+                  ],
+                  'outputs': [
+                    '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
+                  ],
+                  'action': [
+                    '<(node_mksnapshot_exec)',
+                    '--build-snapshot',
+                    '<(node_snapshot_main)',
+                    '<@(_outputs)',
+                  ],
+                },
               ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
+            }, {
+              'actions': [
+                {
+                  'action_name': 'node_mksnapshot',
+                  'process_outputs_as_sources': 1,
+                  'inputs': [
+                    '<(node_mksnapshot_exec)',
+                  ],
+                  'outputs': [
+                    '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
+                  ],
+                  'action': [
+                    '<@(_inputs)',
+                    '<@(_outputs)',
+                  ],
+                },
               ],
-              'action': [
-                '<@(_inputs)',
-                '<@(_outputs)',
-              ],
-            },
+            }],
           ],
-        }, {
+          }, {
           'sources': [
             'src/node_snapshot_stub.cc'
           ],
@@ -645,6 +671,7 @@
         'src/tracing/trace_event_common.h',
         'src/tracing/traced_value.h',
         'src/timer_wrap.h',
+        'src/timer_wrap-inl.h',
         'src/tty_wrap.h',
         'src/udp_wrap.h',
         'src/util.h',
@@ -1495,31 +1522,5 @@
         },
       ]
     }], # end aix section
-    # TODO(RaisinTen): Enable this to build on other platforms as well.
-    ['(OS=="mac" or (OS=="linux" and target_arch=="x64")) and \
-      node_use_openssl=="true"', {
-      'targets': [
-        {
-          'target_name': 'test_crypto_engine',
-          'type': 'shared_library',
-          'include_dirs': ['deps/openssl/openssl/include'],
-          'sources': ['test/fixtures/test_crypto_engine.c'],
-          'conditions': [
-            ['OS=="mac"', {
-              'dependencies': ['deps/openssl/openssl.gyp:openssl'],
-              'xcode_settings': {
-                'OTHER_CFLAGS': ['-Wno-deprecated-declarations'],
-              },
-            }],
-            ['OS=="linux" and target_arch=="x64"', {
-              'cflags': [
-                '-Wno-deprecated-declarations',
-                '-fPIC',
-              ],
-            }],
-          ],
-        }, # test_crypto_engine
-      ], # end targets
-    }], # end node_use_openssl section
   ], # end conditions block
 }

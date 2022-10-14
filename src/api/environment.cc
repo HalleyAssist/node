@@ -141,8 +141,12 @@ void* DebuggingArrayBufferAllocator::Reallocate(void* data,
   Mutex::ScopedLock lock(mutex_);
   void* ret = NodeArrayBufferAllocator::Reallocate(data, old_size, size);
   if (ret == nullptr) {
-    if (size == 0)  // i.e. equivalent to free().
+    if (size == 0) {  // i.e. equivalent to free().
+      // suppress coverity warning as data is used as key versus as pointer
+      // in UnregisterPointerInternal
+      // coverity[pass_freed_arg]
       UnregisterPointerInternal(data, old_size);
+    }
     return nullptr;
   }
 
@@ -344,12 +348,14 @@ Environment* CreateEnvironment(
   Environment* env = new Environment(
       isolate_data, context, args, exec_args, nullptr, flags, thread_id);
 #if HAVE_INSPECTOR
-  if (inspector_parent_handle) {
-    env->InitializeInspector(
-        std::move(static_cast<InspectorParentHandleImpl*>(
-            inspector_parent_handle.get())->impl));
-  } else {
-    env->InitializeInspector({});
+  if (env->should_create_inspector()) {
+    if (inspector_parent_handle) {
+      env->InitializeInspector(
+          std::move(static_cast<InspectorParentHandleImpl*>(
+              inspector_parent_handle.get())->impl));
+    } else {
+      env->InitializeInspector({});
+    }
   }
 #endif
 

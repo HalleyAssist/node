@@ -36,8 +36,11 @@ identical to the behavior of pipes in the shell. Use the `{ stdio: 'ignore' }`
 option if the output will not be consumed.
 
 The command lookup is performed using the `options.env.PATH` environment
-variable if it is in the `options` object. Otherwise, `process.env.PATH` is
-used.
+variable if `env` is in the `options` object. Otherwise, `process.env.PATH` is
+used. If `options.env` is set without `PATH`, lookup on Unix is performed
+on a default search path search of `/usr/bin:/bin` (see your operating system's
+manual for execvpe/execvp), on Windows the current processes environment
+variable `PATH` is used.
 
 On Windows, environment variables are case-insensitive. Node.js
 lexicographically sorts the `env` keys and uses the first one that
@@ -392,6 +395,11 @@ controller.abort();
 added: v0.5.0
 changes:
   - version:
+      - v17.4.0
+    pr-url: https://github.com/nodejs/node/pull/41225
+    description: The `modulePath` parameter can be a WHATWG `URL` object using
+                 `file:` protocol.
+  - version:
       - v16.4.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38862
@@ -425,7 +433,7 @@ changes:
     description: The `stdio` option is supported now.
 -->
 
-* `modulePath` {string} The module to run in the child.
+* `modulePath` {string|URL} The module to run in the child.
 * `args` {string\[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
@@ -801,6 +809,9 @@ pipes between the parent and child. The value is one of the following:
    `child_process` object as [`subprocess.stdio[fd]`][`subprocess.stdio`]. Pipes
    created for fds 0, 1, and 2 are also available as [`subprocess.stdin`][],
    [`subprocess.stdout`][] and [`subprocess.stderr`][], respectively.
+   Currently, these are not actual Unix pipes and therefore the child process
+   can not use them by their descriptor files,
+   e.g. `/dev/fd/2` or `/dev/stdout`.
 2. `'overlapped'`: Same as `'pipe'` except that the `FILE_FLAG_OVERLAPPED` flag
    is set on the handle. This is necessary for overlapped I/O on the child
    process's stdio handles. See the

@@ -93,12 +93,12 @@ provides interoperability between them and its original module format,
 
 <!-- type=misc -->
 
-Node.js treats JavaScript code as CommonJS modules by default.
-Authors can tell Node.js to treat JavaScript code as ECMAScript modules
+Node.js has two module systems: [CommonJS][] modules and ECMAScript modules.
+
+Authors can tell Node.js to use the ECMAScript modules loader
 via the `.mjs` file extension, the `package.json` [`"type"`][] field, or the
-`--input-type` flag. See
-[Modules: Packages](packages.md#determining-module-system) for more
-details.
+[`--input-type`][] flag. Outside of those cases, Node.js will use the CommonJS
+module loader. See [Determining module system][] for more details.
 
 <!-- Anchors to make sure old links find a target -->
 
@@ -154,8 +154,8 @@ typically configured server.
 
 ### URLs
 
-ES modules are resolved and cached as URLs. This means that files containing
-special characters such as `#` and `?` need to be escaped.
+ES modules are resolved and cached as URLs. This means that special characters
+must be [percent-encoded][], such as `#` with `%23` and `?` with `%3F`.
 
 `file:`, `node:`, and `data:` URL schemes are supported. A specifier like
 `'https://example.com/app.js'` is not supported natively in Node.js unless using
@@ -228,6 +228,8 @@ import fs from 'node:fs/promises';
 added: v17.1.0
 -->
 
+> Stability: 1 - Experimental
+
 The [Import Assertions proposal][] adds an inline syntax for module import
 statements to pass on more information alongside the module specifier.
 
@@ -238,11 +240,12 @@ const { default: barData } =
   await import('./bar.json', { assert: { type: 'json' } });
 ```
 
-Node.js supports the following `type` values:
+Node.js supports the following `type` values, for which the assertion is
+mandatory:
 
-| `type`   | Resolves to      |
-| -------- | ---------------- |
-| `'json'` | [JSON modules][] |
+| Assertion `type` | Needed for       |
+| ---------------- | ---------------- |
+| `'json'`         | [JSON modules][] |
 
 ## Builtin modules
 
@@ -473,22 +476,6 @@ These CommonJS variables are not available in ES modules.
 `__filename` and `__dirname` use cases can be replicated via
 [`import.meta.url`][].
 
-#### No JSON Module Loading
-
-JSON imports are still experimental and only supported via the
-`--experimental-json-modules` flag.
-
-Local JSON files can be loaded relative to `import.meta.url` with `fs` directly:
-
-<!-- eslint-skip -->
-
-```js
-import { readFile } from 'fs/promises';
-const json = JSON.parse(await readFile(new URL('./dat.json', import.meta.url)));
-```
-
-Alternatively `module.createRequire()` can be used.
-
 #### No Native Module Loading
 
 Native modules are not currently supported with ES module imports.
@@ -526,32 +513,18 @@ separate cache.
 
 > Stability: 1 - Experimental
 
-Currently importing JSON modules are only supported in the `commonjs` mode
-and are loaded using the CJS loader. [WHATWG JSON modules specification][] are
-still being standardized, and are experimentally supported by including the
-additional flag `--experimental-json-modules` when running Node.js.
-
-When the `--experimental-json-modules` flag is included, both the
-`commonjs` and `module` mode use the new experimental JSON
-loader. The imported JSON only exposes a `default`. There is no
-support for named exports. A cache entry is created in the CommonJS
-cache to avoid duplication. The same object is returned in
-CommonJS if the JSON module has already been imported from the
-same path.
-
-Assuming an `index.mjs` with
+JSON files can be referenced by `import`:
 
 ```js
 import packageConfig from './package.json' assert { type: 'json' };
 ```
 
-The `--experimental-json-modules` flag is needed for the module
-to work.
+The `assert { type: 'json' }` syntax is mandatory; see [Import Assertions][].
 
-```bash
-node index.mjs # fails
-node --experimental-json-modules index.mjs # works
-```
+The imported JSON only exposes a `default` export. There is no support for named
+exports. A cache entry is created in the CommonJS cache to avoid duplication.
+The same object is returned in CommonJS if the JSON module has already been
+imported from the same path.
 
 <i id="esm_experimental_wasm_modules"></i>
 
@@ -559,12 +532,12 @@ node --experimental-json-modules index.mjs # works
 
 > Stability: 1 - Experimental
 
-Importing Web Assembly modules is supported under the
+Importing WebAssembly modules is supported under the
 `--experimental-wasm-modules` flag, allowing any `.wasm` files to be
 imported as normal modules while also supporting their module imports.
 
 This integration is in line with the
-[ES Module Integration Proposal for Web Assembly][].
+[ES Module Integration Proposal for WebAssembly][].
 
 For example, an `index.mjs` containing:
 
@@ -585,14 +558,15 @@ would provide the exports interface for the instantiation of `module.wasm`.
 
 ## Top-level `await`
 
+<!-- YAML
+added: v14.8.0
+-->
+
 > Stability: 1 - Experimental
 
-The `await` keyword may be used in the top level (outside of async functions)
-within modules as per the [ECMAScript Top-Level `await` proposal][].
+The `await` keyword may be used in the top level body of an ECMAScript module.
 
 Assuming an `a.mjs` with
-
-<!-- eslint-skip -->
 
 ```js
 export const five = await Promise.resolve(5);
@@ -610,21 +584,103 @@ console.log(five); // Logs `5`
 node b.mjs # works
 ```
 
+If a top level `await` expression never resolves, the `node` process will exit
+with a `13` [status code][].
+
+```js
+import { spawn } from 'child_process';
+import { execPath } from 'process';
+
+spawn(execPath, [
+  '--input-type=module',
+  '--eval',
+  // Never-resolving Promise:
+  'await new Promise(() => {})',
+]).once('exit', (code) => {
+  console.log(code); // Logs `13`
+});
+```
+
+## HTTPS and HTTP imports
+
+> Stability: 1 - Experimental
+
+Importing network based modules using `https:` and `http:` is supported under
+the `--experimental-network-imports` flag. This allows web browser-like imports
+to work in Node.js with a few differences due to application stability and
+security concerns that are different when running in a privileged environment
+instead of a browser sandbox.
+
+### Imports are limited to HTTP/1
+
+Automatic protocol negotiation for HTTP/2 and HTTP/3 is not yet supported.
+
+### HTTP is limited to loopback addresses
+
+`http:` is vulnerable to man-in-the-middle attacks and is not allowed to be
+used for addresses outside of the IPv4 address `127.0.0.0/8` (`127.0.0.1` to
+`127.255.255.255`) and the IPv6 address `::1`. Support for `http:` is intended
+to be used for local development.
+
+### Authentication is never sent to the destination server.
+
+`Authorization`, `Cookie`, and `Proxy-Authorization` headers are not sent to the
+server. Avoid including user info in parts of imported URLs. A security model
+for safely using these on the server is being worked on.
+
+### CORS is never checked on the destination server
+
+CORS is designed to allow a server to limit the consumers of an API to a
+specific set of hosts. This is not supported as it does not make sense for a
+server-based implementation.
+
+### Cannot load non-network dependencies
+
+These modules cannot access other modules that are not over `http:` or `https:`.
+To still access local modules while avoiding the security concern, pass in
+references to the local dependencies:
+
+```mjs
+// file.mjs
+import worker_threads from 'worker_threads';
+import { configure, resize } from 'https://example.com/imagelib.mjs';
+configure({ worker_threads });
+```
+
+```mjs
+// https://example.com/imagelib.mjs
+let worker_threads;
+export function configure(opts) {
+  worker_threads = opts.worker_threads;
+}
+export function resize(img, size) {
+  // Perform resizing in worker_thread to avoid main thread blocking
+}
+```
+
+### Network-based loading is not enabled by default
+
+For now, the `--experimental-network-imports` flag is required to enable loading
+resources over `http:` or `https:`. In the future, a different mechanism will be
+used to enforce this. Opt-in is required to prevent transitive dependencies
+inadvertently using potentially mutable state that could affect reliability
+of Node.js applications.
+
 <i id="esm_experimental_loaders"></i>
 
 ## Loaders
 
 > Stability: 1 - Experimental
 
-**Note: This API is currently being redesigned and will still change.**
+> This API is currently being redesigned and will still change.
 
 <!-- type=misc -->
 
 To customize the default module resolution, loader hooks can optionally be
 provided via a `--experimental-loader ./loader-name.mjs` argument to Node.js.
 
-When hooks are used they only apply to ES module loading and not to any
-CommonJS modules loaded.
+When hooks are used they apply to the entry point and all `import` calls. They
+won't apply to `require` calls; those still follow [CommonJS][] rules.
 
 ### Hooks
 
@@ -637,7 +693,7 @@ changes:
     description: Add support for import assertions.
 -->
 
-> Note: The loaders API is being redesigned. This hook may disappear or its
+> The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
 
 * `specifier` {string}
@@ -678,8 +734,8 @@ Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
 /**
  * @param {string} specifier
  * @param {{
- *   conditions: !Array<string>,
- *   parentURL: !(string | undefined),
+ *   conditions: string[],
+ *   parentURL: string | undefined,
  * }} context
  * @param {Function} defaultResolve
  * @returns {Promise<{ url: string }>}
@@ -710,10 +766,10 @@ export async function resolve(specifier, context, defaultResolve) {
 
 #### `load(url, context, defaultLoad)`
 
-> Note: The loaders API is being redesigned. This hook may disappear or its
+> The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
 
-> Note: In a previous version of this API, this was split across 3 separate, now
+> In a previous version of this API, this was split across 3 separate, now
 > deprecated, hooks (`getFormat`, `getSource`, and `transformSource`).
 
 * `url` {string}
@@ -751,7 +807,7 @@ overcome in the future.
 > are incompatible. Attempting to use them together will result in an empty
 > object from the import. This may be addressed in the future.
 
-> Note: These types all correspond to classes defined in ECMAScript.
+> These types all correspond to classes defined in ECMAScript.
 
 * The specific [`ArrayBuffer`][] object is a [`SharedArrayBuffer`][].
 * The specific [`TypedArray`][] object is a [`Uint8Array`][].
@@ -772,8 +828,8 @@ format to a supported one, for example `yaml` to `module`.
   }} context If resolve settled with a `format`, that value is included here.
  * @param {Function} defaultLoad
  * @returns {Promise<{
-    format: !string,
-    source: !(string | ArrayBuffer | SharedArrayBuffer | Uint8Array),
+    format: string,
+    source: string | ArrayBuffer | SharedArrayBuffer | Uint8Array,
   }>}
  */
 export async function load(url, context, defaultLoad) {
@@ -801,10 +857,10 @@ source to a supported one (see [Examples](#examples) below).
 
 #### `globalPreload()`
 
-> Note: The loaders API is being redesigned. This hook may disappear or its
+> The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
 
-> Note: In a previous version of this API, this hook was named
+> In a previous version of this API, this hook was named
 > `getGlobalPreloadCode`.
 
 * Returns: {string}
@@ -822,9 +878,12 @@ its own `require` using  `module.createRequire()`.
 
 ```js
 /**
+ * @param {{
+     port: MessagePort,
+   }} utilities Things that preload code might find useful
  * @returns {string} Code to run before application startup
  */
-export function globalPreload() {
+export function globalPreload(utilities) {
   return `\
 globalThis.someInjectedProperty = 42;
 console.log('I just set some globals!');
@@ -835,6 +894,35 @@ const { cwd } = getBuiltin('process');
 const require = createRequire(cwd() + '/<preload>');
 // [...]
 `;
+}
+```
+
+In order to allow communication between the application and the loader, another
+argument is provided to the preload code: `port`. This is available as a
+parameter to the loader hook and inside of the source text returned by the hook.
+Some care must be taken in order to properly call [`port.ref()`][] and
+[`port.unref()`][] to prevent a process from being in a state where it won't
+close normally.
+
+```js
+/**
+ * This example has the application context send a message to the loader
+ * and sends the message back to the application context
+ * @param {{
+     port: MessagePort,
+   }} utilities Things that preload code might find useful
+ * @returns {string} Code to run before application startup
+ */
+export function globalPreload({ port }) {
+  port.onmessage = (evt) => {
+    port.postMessage(evt.data);
+  };
+  return `\
+    port.postMessage('console.log("I went to the Loader and back");');
+    port.onmessage = (evt) => {
+      eval(evt.data);
+    };
+  `;
 }
 ```
 
@@ -915,7 +1003,7 @@ prints the current version of CoffeeScript per the module at the URL in
 
 Sources that are in formats Node.js doesn’t understand can be converted into
 JavaScript using the [`load` hook][load hook]. Before that hook gets called,
-however, a [`resolve` hook][resolve hook] hook needs to tell Node.js not to
+however, a [`resolve` hook][resolve hook] needs to tell Node.js not to
 throw an error on unknown file types.
 
 This is less performant than transpiling source files before running
@@ -996,7 +1084,7 @@ async function getPackageType(url) {
   // required by the spec
   // this simple truthy check for whether `url` contains a file extension will
   // work for most projects but does not cover some edge-cases (such as
-  // extension-less files or a url ending in a trailing space)
+  // extensionless files or a url ending in a trailing space)
   const isFilePath = !!extname(url);
   // If it is a file path, get the directory it's in
   const dir = isFilePath ?
@@ -1343,7 +1431,7 @@ _internal_, _conditions_)
 >    1. Set _scopeURL_ to the parent URL of _scopeURL_.
 >    2. If _scopeURL_ ends in a _"node\_modules"_ path segment, return **null**.
 >    3. Let _pjsonURL_ be the resolution of _"package.json"_ within
->       _packageURL_.
+>       _scopeURL_.
 >    4. if the file at _pjsonURL_ exists, then
 >       1. Return _scopeURL_.
 > 3. Return **null**.
@@ -1360,6 +1448,10 @@ _internal_, _conditions_)
 ### Customizing ESM specifier resolution algorithm
 
 > Stability: 1 - Experimental
+
+> Do not rely on this flag. We plan to remove it once the
+> [Loaders API][] has advanced to the point that equivalent functionality can
+> be achieved via custom loaders.
 
 The current specifier resolution does not support all default behavior of
 the CommonJS loader. One of the behavior differences is automatic resolution
@@ -1387,17 +1479,19 @@ success!
 [CommonJS]: modules.md
 [Conditional exports]: packages.md#conditional-exports
 [Core modules]: modules.md#core-modules
+[Determining module system]: packages.md#determining-module-system
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
-[ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
-[ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
+[ES Module Integration Proposal for WebAssembly]: https://github.com/webassembly/esm-integration
+[Import Assertions]: #import-assertions
 [Import Assertions proposal]: https://github.com/tc39/proposal-import-assertions
 [JSON modules]: #json-modules
+[Loaders API]: #loaders
 [Node.js Module Resolution Algorithm]: #resolver-algorithm-specification
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
-[WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
 [`"exports"`]: packages.md#exports
 [`"type"`]: packages.md#type
+[`--input-type`]: cli.md#--input-typetype
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
@@ -1411,13 +1505,17 @@ success!
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
 [`module.syncBuiltinESMExports()`]: module.md#modulesyncbuiltinesmexports
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
+[`port.ref()`]: https://nodejs.org/dist/latest-v17.x/docs/api/worker_threads.html#portref
+[`port.unref()`]: https://nodejs.org/dist/latest-v17.x/docs/api/worker_threads.html#portunref
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`util.TextDecoder`]: util.md#class-utiltextdecoder
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
 [custom https loader]: #https-loader
 [load hook]: #loadurl-context-defaultload
+[percent-encoded]: url.md#percent-encoding-in-urls
 [resolve hook]: #resolvespecifier-context-defaultresolve
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
+[status code]: process.md#exit-codes
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [url.pathToFileURL]: url.md#urlpathtofileurlpath

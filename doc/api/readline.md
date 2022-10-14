@@ -33,7 +33,7 @@ The following simple example illustrates the basic use of the `readline` module.
 
 ```mjs
 import * as readline from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'process';
+import { stdin as input, stdout as output } from 'node:process';
 
 const rl = readline.createInterface({ input, output });
 
@@ -110,6 +110,9 @@ added: v0.1.98
 The `'line'` event is emitted whenever the `input` stream receives an
 end-of-line input (`\n`, `\r`, or `\r\n`). This usually occurs when the user
 presses <kbd>Enter</kbd> or <kbd>Return</kbd>.
+
+The `'line'` event is also emitted if new data has been read from a stream and
+that stream ends without a final end-of-line marker.
 
 The listener function is called with a string containing the single line of
 received input.
@@ -352,25 +355,6 @@ signal.addEventListener('abort', () => {
 setTimeout(() => ac.abort(), 10000);
 ```
 
-If this method is invoked as it's util.promisify()ed version, it returns a
-Promise that fulfills with the answer. If the question is canceled using
-an `AbortController` it will reject with an `AbortError`.
-
-```js
-const util = require('util');
-const question = util.promisify(rl.question).bind(rl);
-
-async function questionExample() {
-  try {
-    const answer = await question('What is you favorite food? ');
-    console.log(`Oh, so your favorite food is ${answer}`);
-  } catch (err) {
-    console.error('Question rejected', err);
-  }
-}
-questionExample();
-```
-
 ### `rl.resume()`
 
 <!-- YAML
@@ -588,7 +572,7 @@ added: v17.0.0
   prompt.
 * `options` {Object}
   * `signal` {AbortSignal} Optionally allows the `question()` to be canceled
-    using an `AbortController`.
+    using an `AbortSignal`.
 * Returns: {Promise} A promise that is fulfilled with the user's
   input in response to the `query`.
 
@@ -609,20 +593,17 @@ const answer = await rl.question('What is your favorite food? ');
 console.log(`Oh, so your favorite food is ${answer}`);
 ```
 
-Using an `AbortController` to cancel a question.
+Using an `AbortSignal` to cancel a question.
 
 ```mjs
-const ac = new AbortController();
-const signal = ac.signal;
-
-const answer = await rl.question('What is your favorite food? ', { signal });
-console.log(`Oh, so your favorite food is ${answer}`);
+const signal = AbortSignal.timeout(10_000);
 
 signal.addEventListener('abort', () => {
   console.log('The food question timed out');
 }, { once: true });
 
-setTimeout(() => ac.abort(), 10000);
+const answer = await rl.question('What is your favorite food? ', { signal });
+console.log(`Oh, so your favorite food is ${answer}`);
 ```
 
 ### Class: `readlinePromises.Readline`
@@ -899,25 +880,6 @@ signal.addEventListener('abort', () => {
 setTimeout(() => ac.abort(), 10000);
 ```
 
-If this method is invoked as it's util.promisify()ed version, it returns a
-Promise that fulfills with the answer. If the question is canceled using
-an `AbortController` it will reject with an `AbortError`.
-
-```js
-const util = require('util');
-const question = util.promisify(rl.question).bind(rl);
-
-async function questionExample() {
-  try {
-    const answer = await question('What is you favorite food? ');
-    console.log(`Oh, so your favorite food is ${answer}`);
-  } catch (err) {
-    console.error('Question rejected', err);
-  }
-}
-questionExample();
-```
-
 ### `readline.clearLine(stream, dir[, callback])`
 
 <!-- YAML
@@ -1059,15 +1021,8 @@ a `'resize'` event on the `output` if or when the columns ever change
 ([`process.stdout`][] does this automatically when it is a TTY).
 
 When creating a `readline.Interface` using `stdin` as input, the program
-will not terminate until it receives `EOF` (<kbd>Ctrl</kbd>+<kbd>D</kbd> on
-Linux/macOS, <kbd>Ctrl</kbd>+<kbd>Z</kbd> followed by <kbd>Return</kbd> on
-Windows).
-If you want your application to exit without waiting for user input, you can
-[`unref()`][] the standard input stream:
-
-```js
-process.stdin.unref();
-```
+will not terminate until it receives an [EOF character][]. To exit without
+waiting for user input, call `process.stdin.unref()`.
 
 #### Use of the `completer` function
 
@@ -1314,13 +1269,23 @@ const { createInterface } = require('readline');
     <td></td>
   </tr>
   <tr>
+    <td><kbd>Ctrl</kbd>+<kbd>Y</kbd></td>
+    <td>Yank (Recall) the previously deleted text</td>
+    <td>Only works with text deleted by <kbd>Ctrl</kbd>+<kbd>U</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd></td>
+  </tr>
+  <tr>
+    <td><kbd>Meta</kbd>+<kbd>Y</kbd></td>
+    <td>Cycle among previously deleted lines</td>
+    <td>Only available when the last keystroke is <kbd>Ctrl</kbd>+<kbd>Y</kbd></td>
+  </tr>
+  <tr>
     <td><kbd>Ctrl</kbd>+<kbd>A</kbd></td>
     <td>Go to start of line</td>
     <td></td>
   </tr>
   <tr>
     <td><kbd>Ctrl</kbd>+<kbd>E</kbd></td>
-    <td>Go to to end of line</td>
+    <td>Go to end of line</td>
     <td></td>
   </tr>
   <tr>
@@ -1347,6 +1312,21 @@ const { createInterface } = require('readline');
     <td><kbd>Ctrl</kbd>+<kbd>P</kbd></td>
     <td>Previous history item</td>
     <td></td>
+  </tr>
+  <tr>
+    <td><kbd>Ctrl</kbd>+<kbd>-</kbd></td>
+    <td>Undo previous change</td>
+    <td>Any keystroke that emits key code <code>0x1F</code> will do this action.
+    In many terminals, for example <code>xterm</code>,
+    this is bound to <kbd>Ctrl</kbd>+<kbd>-</kbd>.</td>
+  </tr>
+  <tr>
+    <td><kbd>Ctrl</kbd>+<kbd>6</kbd></td>
+    <td>Redo previous change</td>
+    <td>Many terminals don't have a default redo keystroke.
+    We choose key code <code>0x1E</code> to perform redo.
+    In <code>xterm</code>, it is bound to <kbd>Ctrl</kbd>+<kbd>6</kbd>
+    by default.</td>
   </tr>
   <tr>
     <td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td>
@@ -1395,6 +1375,7 @@ const { createInterface } = require('readline');
   </tr>
 </table>
 
+[EOF character]: https://en.wikipedia.org/wiki/End-of-file#EOF_character
 [Readable]: stream.md#readable-streams
 [TTY]: tty.md
 [TTY keybindings]: #tty-keybindings
@@ -1406,5 +1387,4 @@ const { createInterface } = require('readline');
 [`process.stdin`]: process.md#processstdin
 [`process.stdout`]: process.md#processstdout
 [`rl.close()`]: #rlclose
-[`unref()`]: net.md#socketunref
 [reading files]: #example-read-file-stream-line-by-line
