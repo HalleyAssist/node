@@ -5,7 +5,6 @@
   'variables': {
     'ngtcp2_sources': [
       "ngtcp2/crypto/shared.c",
-      "ngtcp2/crypto/wolfssl/wolfssl.c",
       "ngtcp2/lib/ngtcp2_acktr.c",
       "ngtcp2/lib/ngtcp2_addr.c",
       "ngtcp2/lib/ngtcp2_balloc.c",
