@@ -4,10 +4,6 @@
   },
   'variables': {
     'ngtcp2_sources': [
-      "ngtcp2/crypto/boringssl/boringssl.c",
-      "ngtcp2/crypto/gnutls/gnutls.c",
-      "ngtcp2/crypto/openssl/openssl.c",
-      "ngtcp2/crypto/picotls/picotls.c",
       "ngtcp2/crypto/shared.c",
       "ngtcp2/crypto/wolfssl/wolfssl.c",
       "ngtcp2/lib/ngtcp2_acktr.c",
