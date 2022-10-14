@@ -1453,6 +1453,14 @@ bool Session::AttachToNewEndpoint(EndpointWrap* endpoint, bool nat_rebinding) {
   return true;
 }
 
+
+void Session::CloseSilently() {
+  if (!is_destroyed()) {
+    DEBUG(this, "Close silently");
+    Close(SILENT);
+  }
+}
+
 void Session::Close(SessionCloseFlags close_flags) {
   if (is_destroyed())
     return;
@@ -1541,57 +1549,109 @@ BaseObjectPtr<Stream> Session::CreateStream(stream_id id) {
   return stream;
 }
 
-bool Session::SendDatagram(
-    const std::shared_ptr<v8::BackingStore>& store,
-    size_t offset,
-    size_t length) {
-
-  // Step 0: If the remote transport params aren't known, we can't
-  // know what size datagram to send, so don't.
-  if (!transport_params_set_)
-    return false;
-
-  uint64_t max_datagram_size = std::min(
-    static_cast<uint64_t>(kDefaultMaxPacketLength),
-    transport_params_.max_datagram_frame_size);
-
-  // The datagram will be ignored if it's too large
-  if (length > max_datagram_size)
-    return false;
-
-  ngtcp2_vec vec;
-  vec.base = reinterpret_cast<uint8_t*>(store->Data()) + offset;
-  vec.len = length;
-
-  std::unique_ptr<Packet> packet = std::make_unique<Packet>("datagram");
-  PathStorage path;
-  int accepted = 0;
-  ssize_t res = ngtcp2_conn_writev_datagram(
-      connection(),
-      &path.path,
-      nullptr,
-      packet->data(),
-      max_packet_length(),
-      &accepted,
-      NGTCP2_DATAGRAM_FLAG_NONE,
-      &vec, 1,
-      uv_hrtime());
-
-  // The packet could not be written. There are several reasons
-  // this could be. Either we're currently at the congestion
-  // control limit, the data does not fit into the packet,
-  // or we've hit the amplificiation limit, etc. We check
-  // accepted just in case but oherwise just return false here.
-  if (res == 0 || accepted == 0) {
-    CHECK_EQ(accepted, 0);
-    return false;
+datagram_id Session::SendDatagram(Store&& data) {
+  auto tp = ngtcp2_conn_get_remote_transport_params(connection());
+  uint64_t max_datagram_size = tp->max_datagram_frame_size;
+  if (max_datagram_size == 0 || data.length() > max_datagram_size) {
+    DEBUG(this, "Datagram is too large");
+    return 0;
   }
 
-  // If we got here, the data should have been written. Verify.
-  CHECK_NE(accepted, 0);
-  packet->set_length(res);
+  BaseObjectPtr<Packet> packet;
+  uint8_t* pos = nullptr;
+  int accepted = 0;
+  ngtcp2_vec vec = data;
+  PathStorage path;
+  int flags = NGTCP2_WRITE_DATAGRAM_FLAG_MORE;
+  datagram_id did = last_datagram_id_ + 1;
 
-  return SendPacket(std::move(packet), path);
+  // Let's give it a max number of attempts to send the datagram
+  static const int kMaxAttempts = 16;
+  int attempts = 0;
+
+  for (;;) {
+    if (!packet) {
+      packet =
+          Packet::Create(env(),
+                         endpoint_.get(),
+                         remote_address_,
+                         "datagram",
+                         ngtcp2_conn_get_max_udp_payload_size(connection()));
+      if (!packet) {
+        last_error_ = QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL);
+        CloseSilently();
+        return 0;
+      }
+      pos = ngtcp2_vec(*packet).base;
+    }
+
+    ssize_t nwrite = ngtcp2_conn_writev_datagram(connection(),
+                                                 &path.path,
+                                                 nullptr,
+                                                 pos,
+                                                 packet->length(),
+                                                 &accepted,
+                                                 flags,
+                                                 did,
+                                                 &vec,
+                                                 1,
+                                                 uv_hrtime());
+
+    if (nwrite < 0) {
+      switch (nwrite) {
+        case 0: {
+          // We cannot send data because of congestion control or the data will
+          // not fit. Since datagrams are best effort, we are going to abandon
+          // the attempt and just return.
+          DEBUG(this,
+                "Cannot send datagram because of congestion control or size");
+          CHECK_EQ(accepted, 0);
+          return 0;
+        }
+        case NGTCP2_ERR_WRITE_MORE: {
+          // We keep on looping! Keep on sending!
+          continue;
+        }
+        case NGTCP2_ERR_INVALID_STATE: {
+          // The remote endpoint does not want to accept datagrams. That's ok,
+          // just return 0.
+          DEBUG(this, "The remote endpoint does not support datagrams");
+          return 0;
+        }
+        case NGTCP2_ERR_INVALID_ARGUMENT: {
+          // The datagram is too large. That should have been caught above but
+          // that's ok. We'll just abandon the attempt and return.
+          DEBUG(this, "The datagram is too large");
+          return 0;
+        }
+      }
+      last_error_ = QuicError::ForNgtcp2Error(nwrite);
+      CloseSilently();
+      return 0;
+    }
+
+    // In this case, a complete packet was written and we need to send it along.
+    packet->Truncate(nwrite);
+    SendPacket(std::move(packet), path);
+    
+    ngtcp2_conn_update_pkt_tx_time(connection(), uv_hrtime());
+
+    if (accepted != 0) {
+      // Yay! The datagram was accepted into the packet we just sent and we can
+      // just return the datagram ID.
+      last_datagram_id_ = did;
+      return did;
+    }
+
+    // We sent a packet, but it wasn't the datagram packet. That can happen.
+    // Let's loop around and try again.
+    if (++attempts == kMaxAttempts) {
+      DEBUG(this, "Too many attempts to send datagram");
+      break;
+    }
+  }
+
+  return 0;
 }
 
 void Session::Datagram(uint32_t flags, const uint8_t* data, size_t datalen) {

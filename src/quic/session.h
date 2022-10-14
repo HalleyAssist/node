@@ -996,6 +996,8 @@ class Session final : public AsyncWrap,
   // be deferred until the ngtcp2 callback scope exits.
   void Close(SessionCloseFlags close_flags = SessionCloseFlags::NONE);
 
+  void CloseSilently();
+
   bool IsResetToken(const CID& cid, const uint8_t* data, size_t datalen);
 
   // Mark the Session instance destroyed. This will either be invoked
