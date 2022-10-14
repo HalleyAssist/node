@@ -19,6 +19,7 @@
 #include "node_http_common-inl.h"
 #include "node_process-inl.h"
 #include "node_sockaddr-inl.h"
+#include "timer_wrap-inl.h"
 #include "v8.h"
 
 #include <ngtcp2/ngtcp2_crypto_openssl.h>
