@@ -6,6 +6,7 @@
 #define V8_HEAP_LIST_H_
 
 #include <atomic>
+#include <utility>
 
 #include "src/base/logging.h"
 

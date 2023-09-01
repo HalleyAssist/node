@@ -6,6 +6,7 @@
 #define V8_HEAP_CPPGC_MARKING_STATE_H_
 
 #include <algorithm>
+#include <utility>
 
 #include "include/cppgc/trace-trait.h"
 #include "include/cppgc/visitor.h"
