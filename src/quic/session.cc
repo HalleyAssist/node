@@ -2210,7 +2210,9 @@ void Session::IncrementConnectionCloseAttempts() {
     connection_close_attempts_++;
 }
 
-void Session::RemoveStream(stream_id id) {
+void Session::RemoveStream(const Stream* stream) {
+  stream_id id = stream->id();
+
   Debug(this, "Removing stream %" PRId64, id);
 
   // ngtcp2 does not extend the max streams count automatically
@@ -2225,6 +2227,32 @@ void Session::RemoveStream(stream_id id) {
       ngtcp2_conn_extend_max_streams_bidi(connection_.get(), 1);
     else
       ngtcp2_conn_extend_max_streams_uni(connection_.get(), 1);
+  }
+
+
+  // Update tracking statistics for the number of streams associated with
+  // this session.
+  switch (stream->origin()) {
+    case Stream::Origin::CLIENT:
+      if (is_server())
+        IncrementStat(&SessionStats::streams_in_count, -1);
+      else
+        IncrementStat(&SessionStats::streams_out_count, -1);
+      break;
+    case Stream::Origin::SERVER:
+      if (is_server())
+        IncrementStat(&SessionStats::streams_out_count, -1);
+      else
+        IncrementStat(&SessionStats::streams_in_count, -1);
+  }
+  IncrementStat(&SessionStats::streams_out_count);
+  switch (stream->direction()) {
+    case Stream::Direction::BIDIRECTIONAL:
+      IncrementStat(&SessionStats::bidi_stream_count, -1);
+      break;
+    case Stream::Direction::UNIDIRECTIONAL:
+      IncrementStat(&SessionStats::uni_stream_count, -1);
+      break;
   }
 
   // Frees the persistent reference to the Stream object,

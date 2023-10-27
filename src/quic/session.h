@@ -906,7 +906,7 @@ class Session final : public AsyncWrap,
 
   // Removes the given stream from the Session. All streams must
   // be removed before the Session is destroyed.
-  void RemoveStream(stream_id id);
+  void RemoveStream(const Stream* stream);
   void ResumeStream(stream_id id);
   bool HasStream(stream_id id) const;
   void StreamDataBlocked(stream_id id);

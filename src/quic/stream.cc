@@ -487,7 +487,7 @@ void Stream::Destroy() {
   inbound_consumer_strong_ptr_.reset();
 
   // Remove the stream from the owning session and reset the pointer
-  session()->RemoveStream(id_);
+  session()->RemoveStream(this);
   session_.reset();
 }
 
