@@ -92,6 +92,13 @@ class StatsBase {
     stats_->*member += std::min(amount, kMaxUint64 - stats_->*member);
   }
 
+  // Decrements the given stat field by the given amount or 1 if
+  // no amount is specified.
+  inline void DecrementStat(uint64_t Stats::*member, uint64_t amount = 1) {
+    Mutex::ScopedLock lock(mutex_);
+    stats_->*member -= std::min(amount, stats_->*member);
+  }
+
   // Sets an entirely new value for the given stat field
   inline void SetStat(uint64_t Stats::*member, uint64_t value) {
     Mutex::ScopedLock lock(mutex_);
