@@ -109,9 +109,7 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   virtual void Verify(Isolate* isolate);
 #endif
 
-#ifdef DEBUG
   void Print() override;
-#endif
 
   // The last allocated object that is not guaranteed to be initialized when the
   // concurrent marker visits it.

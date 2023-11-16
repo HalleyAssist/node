@@ -153,9 +153,10 @@ class SemiSpace : public Space {
   const_iterator end() const { return const_iterator(nullptr); }
 
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
+  
+  V8_EXPORT_PRIVATE void Print() override;
 
 #ifdef DEBUG
-  V8_EXPORT_PRIVATE void Print() override;
   // Validate a range of of addresses in a SemiSpace.
   // The "from" address must be on a page prior to the "to" address,
   // in the linked page order, or it must be earlier on the same page.
@@ -422,10 +423,8 @@ class V8_EXPORT_PRIVATE NewSpace
   virtual void Verify(Isolate* isolate);
 #endif
 
-#ifdef DEBUG
   // Print the active semispace.
   void Print() override { to_space_.Print(); }
-#endif
 
   // Return whether the operation succeeded.
   bool CommitFromSpaceIfNeeded() {

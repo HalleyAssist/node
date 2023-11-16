@@ -182,11 +182,8 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   FreeList* free_list() { return free_list_.get(); }
 
   Address FirstPageAddress() const { return first_page()->address(); }
-
-#ifdef DEBUG
   virtual void Print() = 0;
-#endif
-
+  
  protected:
   int allocation_observers_paused_depth_ = 0;
 

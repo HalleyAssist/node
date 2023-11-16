@@ -305,9 +305,7 @@ std::unique_ptr<ObjectIterator> SemiSpace::GetObjectIterator(Heap* heap) {
   UNREACHABLE();
 }
 
-#ifdef DEBUG
 void SemiSpace::Print() {}
-#endif
 
 #ifdef VERIFY_HEAP
 void SemiSpace::Verify() {

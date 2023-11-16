@@ -238,11 +238,12 @@ class V8_EXPORT_PRIVATE PagedSpace
   virtual void VerifyObject(HeapObject obj) {}
 #endif
 
+  // Print meta info and objects in this space.
+  void Print() override;
+
 #ifdef DEBUG
   void VerifyCountersAfterSweeping(Heap* heap);
   void VerifyCountersBeforeConcurrentSweeping();
-  // Print meta info and objects in this space.
-  void Print() override;
 
   // Report code object related statistics
   static void ReportCodeStatistics(Isolate* isolate);

@@ -1673,6 +1673,13 @@ Heap::DevToolsTraceEventScope::~DevToolsTraceEventScope() {
 bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
+
+  if (FLAG_trace_gc_nvp && HasBeenSetUp() && gc_state() == Heap::NOT_IN_GC) {
+    isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
+  }
+
+
+
   if (V8_UNLIKELY(!deserialization_complete_)) {
     // During isolate initialization heap always grows. GC is only requested
     // if a new page allocation fails. In such a case we should crash with
@@ -4205,8 +4212,6 @@ void Heap::CollectCodeStatistics() {
   CodeStatistics::CollectCodeStatistics(code_lo_space_, isolate());
 }
 
-#ifdef DEBUG
-
 void Heap::Print() {
   if (!HasBeenSetUp()) return;
   isolate()->PrintStack(stdout);
@@ -4215,6 +4220,9 @@ void Heap::Print() {
     it.Next()->Print();
   }
 }
+
+#ifdef DEBUG
+
 
 void Heap::ReportCodeStatistics(const char* title) {
   PrintF(">>>>>> Code Stats (%s) >>>>>>\n", title);

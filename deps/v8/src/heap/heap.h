@@ -1630,11 +1630,12 @@ class Heap {
   void set_allocation_timeout(int timeout) { allocation_timeout_ = timeout; }
 #endif
 
+  void Print();
+  
 #ifdef DEBUG
   void VerifyCountersAfterSweeping();
   void VerifyCountersBeforeConcurrentSweeping();
 
-  void Print();
   void PrintHandles();
 
   // Report code statistics.

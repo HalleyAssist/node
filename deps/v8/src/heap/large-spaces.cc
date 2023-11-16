@@ -427,7 +427,6 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
 }
 #endif
 
-#ifdef DEBUG
 void LargeObjectSpace::Print() {
   StdoutStream os;
   LargeObjectSpaceObjectIterator it(this);
@@ -435,7 +434,6 @@ void LargeObjectSpace::Print() {
     obj.Print(os);
   }
 }
-#endif  // DEBUG
 
 void LargeObjectSpace::UpdatePendingObject(HeapObject object) {
   base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);

@@ -671,9 +671,7 @@ PagedSpace::TryAllocationFromFreeListBackground(LocalHeap* local_heap,
   return std::make_pair(start, used_size_in_bytes);
 }
 
-#ifdef DEBUG
 void PagedSpace::Print() {}
-#endif
 
 #ifdef VERIFY_HEAP
 void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
