@@ -982,6 +982,8 @@ class Session final : public AsyncWrap,
   // The choice of which is send is based on the current value of last_error_.
   bool SendConnectionClose();
 
+  bool CloseSend(QuicError error, bool silent, bool stateless_reset);
+
   enum class SessionCloseFlags {
     NONE,
     SILENT,

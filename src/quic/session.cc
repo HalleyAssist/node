@@ -1452,11 +1452,8 @@ bool Session::AttachToNewEndpoint(EndpointWrap* endpoint, bool nat_rebinding) {
   return true;
 }
 
-void Session::Close(SessionCloseFlags close_flags) {
-  if (is_destroyed())
-    return;
-  bool silent = close_flags == SessionCloseFlags::SILENT;
-  bool stateless_reset = silent && state_->stateless_reset;
+bool Session::CloseSend(QuicError error, bool silent, bool stateless_reset) {
+  if (is_destroyed()) return true;
 
   // If we're not running within a ngtcp2 callback scope, schedule
   // a CONNECTION_CLOSE to be sent when Close exits. If we are
@@ -1466,20 +1463,31 @@ void Session::Close(SessionCloseFlags close_flags) {
 
   // Once Close has been called, we cannot re-enter
   if (UNLIKELY(state_->closing))
-    return;
+    return true;
 
   state_->closing = 1;
   state_->silent_close = silent ? 1 : 0;
 
-  QuicError error = last_error();
   Debug(this,
         "Closing with error: %s (silent: %s, stateless reset: %s)",
         error,
         silent ? "Y" : "N",
         stateless_reset ? "Y" : "N");
 
-  if (!state_->wrapped)
-    return Destroy();
+  if (!state_->wrapped) {
+    Destroy();
+    return true;
+  }
+
+  return false;
+}
+
+void Session::Close(SessionCloseFlags close_flags) {
+  bool silent = close_flags == SessionCloseFlags::SILENT;
+  bool stateless_reset = silent && state_->stateless_reset;
+  QuicError error = last_error();
+
+  if(CloseSend(error, silent, stateless_reset)) return;
 
   // If the Session has been wrapped by a JS object, we have to
   // notify the JavaScript side that the session is being closed.
@@ -2334,7 +2342,9 @@ bool Session::StartClosingPeriod() {
 
 void Session::StartGracefulClose() {
   state_->graceful_closing = 1;
+
   RecordTimestamp(&SessionStats::closing_at);
+  Close();
 }
 
 void Session::StreamClose(stream_id id, error_code app_error_code) {
@@ -2365,7 +2375,7 @@ void Session::StreamReset(
 }
 
 void Session::UpdateClosingTimer() {
-  if (state_->closing_timer_enabled)
+  if (state_->closing_timer_enabled && !state_->idle_timeout)
     return;
   state_->closing_timer_enabled = 1;
   uint64_t timeout =
