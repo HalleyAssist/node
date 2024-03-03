@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -55,7 +55,7 @@ static int x509_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 #endif
         ASN1_OCTET_STRING_free(ret->distinguishing_id);
 
-        /* fall thru */
+        /* fall through */
 
     case ASN1_OP_NEW_POST:
         ret->ex_cached = 0;
@@ -104,23 +104,6 @@ static int x509_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 
             if (!ossl_x509_set0_libctx(ret, old->libctx, old->propq))
                 return 0;
-            if (old->cert_info.key != NULL) {
-                EVP_PKEY *pkey = X509_PUBKEY_get0(old->cert_info.key);
-
-                if (pkey != NULL) {
-                    pkey = EVP_PKEY_dup(pkey);
-                    if (pkey == NULL) {
-                        ERR_raise(ERR_LIB_X509, ERR_R_MALLOC_FAILURE);
-                        return 0;
-                    }
-                    if (!X509_PUBKEY_set(&ret->cert_info.key, pkey)) {
-                        EVP_PKEY_free(pkey);
-                        ERR_raise(ERR_LIB_X509, ERR_R_INTERNAL_ERROR);
-                        return 0;
-                    }
-                    EVP_PKEY_free(pkey);
-                }
-            }
         }
         break;
     case ASN1_OP_GET0_LIBCTX:
@@ -130,6 +113,7 @@ static int x509_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
             *libctx = ret->libctx;
         }
         break;
+
     case ASN1_OP_GET0_PROPQ:
         {
             const char **propq = exarg;
@@ -137,6 +121,7 @@ static int x509_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
             *propq = ret->propq;
         }
         break;
+
     default:
         break;
     }

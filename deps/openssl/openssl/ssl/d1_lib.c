@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include <stdio.h>
 #include <openssl/objects.h>
 #include <openssl/rand.h>
@@ -130,6 +130,23 @@ void dtls1_clear_sent_buffer(SSL *s)
 
     while ((item = pqueue_pop(s->d1->sent_messages)) != NULL) {
         frag = (hm_fragment *)item->data;
+
+        if (frag->msg_header.is_ccs) {
+            /*
+             * If we're freeing the CCS then we're done with the old
+             * enc_write_ctx/write_hash and they can be freed
+             */
+            if (s->enc_write_ctx
+                    != frag->msg_header.saved_retransmit_state.enc_write_ctx)
+                EVP_CIPHER_CTX_free(frag->msg_header.saved_retransmit_state
+                                                    .enc_write_ctx);
+
+            if (s->write_hash
+                    != frag->msg_header.saved_retransmit_state.write_hash)
+                EVP_MD_CTX_free(frag->msg_header.saved_retransmit_state
+                                                .write_hash);
+        }
+
         dtls1_hm_fragment_free(frag);
         pitem_free(item);
     }

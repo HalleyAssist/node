@@ -1,11 +1,15 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
 
+# For manually running these tests, set specific environment variables like this:
+# CTLOG_FILE=test/ct/log_list.cnf
+# TEST_CERTS_DIR=test/certs
+# For details on the environment variables needed, see test/README.ssltest.md
 
 use strict;
 use warnings;
@@ -27,14 +31,22 @@ my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
 
 $ENV{TEST_CERTS_DIR} = srctop_dir("test", "certs");
 
-my @conf_srcs =  glob(srctop_file("test", "ssl-tests", "*.cnf.in"));
+my @conf_srcs = ();
+if (defined $ENV{SSL_TESTS}) {
+    my @conf_list = split(' ', $ENV{SSL_TESTS});
+    foreach my $conf_file (@conf_list) {
+        push (@conf_srcs, glob(srctop_file("test", "ssl-tests", $conf_file)));
+    }
+    plan tests => scalar @conf_srcs;
+} else {
+    @conf_srcs = glob(srctop_file("test", "ssl-tests", "*.cnf.in"));
+    # We hard-code the number of tests to double-check that the globbing above
+    # finds all files as expected.
+    plan tests => 30;
+}
 map { s/;.*// } @conf_srcs if $^O eq "VMS";
 my @conf_files = map { basename($_, ".in") } @conf_srcs;
 map { s/\^// } @conf_files if $^O eq "VMS";
-
-# We hard-code the number of tests to double-check that the globbing above
-# finds all files as expected.
-plan tests => 30;
 
 # Some test results depend on the configuration of enabled protocols. We only
 # verify generated sources in the default configuration.
@@ -163,13 +175,14 @@ sub test_conf {
       skip "No tests available; skipping tests", 1 if $skip;
       skip "Stale sources; skipping tests", 1 if !$run_test;
 
+      my $msg = "running CTLOG_FILE=test/ct/log_list.cnf". # $ENV{CTLOG_FILE}.
+          " TEST_CERTS_DIR=test/certs". # $ENV{TEST_CERTS_DIR}.
+          " test/ssl_test test/ssl-tests/$conf $provider";
       if ($provider eq "fips") {
           ok(run(test(["ssl_test", $output_file, $provider,
-                       srctop_file("test", "fips-and-base.cnf")])),
-             "running ssl_test $conf");
+                       srctop_file("test", "fips-and-base.cnf")])), $msg);
       } else {
-          ok(run(test(["ssl_test", $output_file, $provider])),
-             "running ssl_test $conf");
+          ok(run(test(["ssl_test", $output_file, $provider])), $msg);
       }
     }
 }

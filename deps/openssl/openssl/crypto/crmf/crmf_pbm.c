@@ -1,5 +1,5 @@
 /*-
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -22,7 +22,6 @@
 #include <openssl/asn1t.h>
 #include <openssl/crmf.h>
 #include <openssl/err.h>
-#include <openssl/evp.h>
 #include <openssl/params.h>
 #include <openssl/core_names.h>
 
@@ -200,8 +199,8 @@ int OSSL_CRMF_pbm_new(OSSL_LIB_CTX *libctx, const char *propq,
     mac_nid = OBJ_obj2nid(pbmp->mac->algorithm);
 
     if (!EVP_PBE_find(EVP_PBE_TYPE_PRF, mac_nid, NULL, &hmac_md_nid, NULL)
-        || !OBJ_obj2txt(hmac_mdname, sizeof(hmac_mdname),
-                        OBJ_nid2obj(hmac_md_nid), 0)) {
+        || OBJ_obj2txt(hmac_mdname, sizeof(hmac_mdname),
+                        OBJ_nid2obj(hmac_md_nid), 0) <= 0) {
         ERR_raise(ERR_LIB_CRMF, CRMF_R_UNSUPPORTED_ALGORITHM);
         goto err;
     }

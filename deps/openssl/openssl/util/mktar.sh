@@ -1,5 +1,5 @@
 #! /bin/sh
-# Copyright 2018-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -12,6 +12,7 @@ HERE=`dirname $0`
 . $HERE/../VERSION.dat
 
 if [ -n "$PRE_RELEASE_TAG" ]; then PRE_RELEASE_TAG=-$PRE_RELEASE_TAG; fi
+if [ -n "$BUILD_METADATA" ]; then BUILD_METADATA=+$BUILD_METADATA; fi
 version=$MAJOR.$MINOR.$PATCH$PRE_RELEASE_TAG$BUILD_METADATA
 basename=openssl
 

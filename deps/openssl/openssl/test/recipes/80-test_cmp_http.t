@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright Nokia 2007-2019
 # Copyright Siemens AG 2015-2019
 #
@@ -42,8 +42,8 @@ sub chop_dblquot { # chop any leading and trailing '"' (needed for Windows)
     return $str;
 }
 
-my $proxy = "<EMPTY>";
-$proxy = chop_dblquot($ENV{http_proxy} // $ENV{HTTP_PROXY} // $proxy);
+my $proxy = chop_dblquot($ENV{http_proxy} // $ENV{HTTP_PROXY} // "");
+$proxy = "<EMPTY>" if $proxy eq "";
 $proxy =~ s{^https?://}{}i;
 my $no_proxy = $ENV{no_proxy} // $ENV{NO_PROXY};
 
@@ -52,7 +52,7 @@ my @app = qw(openssl cmp);
 # the CMP server configuration consists of:
 my $ca_dn;      # The CA's Distinguished Name
 my $server_dn;  # The server's Distinguished Name
-my $server_host;# The server's host name or IP address
+my $server_host;# The server's hostname or IP address
 my $server_port;# The server's port
 my $server_tls; # The server's TLS port, if any, or 0
 my $server_path;# The server's CMP alias
@@ -170,8 +170,8 @@ sub test_cmp_http_aspect {
 # from $BLDTOP/test-runs/test_cmp_http and prepending the input files by SRCTOP.
 
 indir data_dir() => sub {
-    plan tests => @server_configurations * @all_aspects
-        + (grep(/^Mock$/, @server_configurations)
+    plan tests => 1 + @server_configurations * @all_aspects
+        - (grep(/^Mock$/, @server_configurations)
            && grep(/^certstatus$/, @all_aspects));
 
     foreach my $server_name (@server_configurations) {
@@ -196,6 +196,7 @@ indir data_dir() => sub {
                 };
             };
             stop_mock_server($pid) if $pid;
+            ok(1, "killing mock server");
           }
         }
     };
@@ -293,4 +294,5 @@ sub stop_mock_server {
     my $pid = $_[0];
     print "Killing mock server with pid=$pid\n";
     kill('KILL', $pid);
+    waitpid($pid, 0);
 }

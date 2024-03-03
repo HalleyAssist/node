@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -95,6 +95,8 @@ int bn_div_fixed_top(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
 
 int ossl_bn_miller_rabin_is_prime(const BIGNUM *w, int iterations, BN_CTX *ctx,
                                   BN_GENCB *cb, int enhanced, int *status);
+int ossl_bn_check_generated_prime(const BIGNUM *w, int checks, BN_CTX *ctx,
+                                  BN_GENCB *cb);
 
 const BIGNUM *ossl_bn_get0_small_factors(void);
 

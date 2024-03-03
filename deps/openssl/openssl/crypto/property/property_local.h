@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -34,7 +34,8 @@ struct ossl_property_list_st {
     OSSL_PROPERTY_DEFINITION properties[1];
 };
 
-extern OSSL_PROPERTY_IDX ossl_property_true, ossl_property_false;
+#define OSSL_PROPERTY_TRUE      1
+#define OSSL_PROPERTY_FALSE     2
 
 /* Property string functions */
 OSSL_PROPERTY_IDX ossl_property_name(OSSL_LIB_CTX *ctx, const char *s,
@@ -51,4 +52,4 @@ int ossl_property_has_optional(const OSSL_PROPERTY_LIST *query);
 /* Property definition cache functions */
 OSSL_PROPERTY_LIST *ossl_prop_defn_get(OSSL_LIB_CTX *ctx, const char *prop);
 int ossl_prop_defn_set(OSSL_LIB_CTX *ctx, const char *prop,
-                       OSSL_PROPERTY_LIST *pl);
+                       OSSL_PROPERTY_LIST **pl);
