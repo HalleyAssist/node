@@ -228,6 +228,10 @@ class Stream final : public AsyncWrap,
   // STOP_SENDING frame will be sent.
   void ResetStream(const QuicError& error = kQuicAppNoError);
 
+  
+  // ResetStreamWrite will cause ngtcp2 to queue a RESET_STREAM 
+  void ResetStreamWrite(const QuicError& error = kQuicAppNoError);
+
   void Resume();
 
   void StopSending(const QuicError& error = kQuicAppNoError);

@@ -1645,6 +1645,8 @@ class DefaultApplication final : public Session::Application {
   bool ShouldSetFin(const StreamData& stream_data) override;
   bool StreamCommit(StreamData* stream_data, size_t datalen) override;
 
+  void StreamReset(stream_id id, error_code app_error_code) override;
+
   SET_SELF_SIZE(DefaultApplication)
   SET_MEMORY_INFO_NAME(DefaultApplication)
   SET_NO_MEMORY_INFO()

@@ -269,7 +269,7 @@ int Buffer::DoPull(
   // There's no data to read.
   if (queue_.empty() || !remaining_) {
     status = ended_ ?
-        bob::Status::STATUS_END :
+        bob::Status::STATUS_EOS :
         bob::Status::STATUS_BLOCK;
     std::move(next)(status, nullptr, 0, [](size_t len) {});
     return status;
@@ -304,7 +304,7 @@ int Buffer::DoPull(
   if (is_ended() &&
       numbytes == remaining() &&
       options & bob::OPTIONS_END) {
-    status = bob::Status::STATUS_END;
+    status = bob::Status::STATUS_EOS;
   }
 
   // Pass the data back out to the caller.
@@ -321,7 +321,7 @@ int Buffer::DoPull(
 }
 
 Maybe<size_t> Buffer::Release(Consumer* consumer) {
-  if (queue_.empty())
+  if (queue_.empty() && !ended_)
     return Just(static_cast<size_t>(0));
   head_ = 0;
   length_ = 0;
@@ -519,7 +519,7 @@ int NullSource::DoPull(
     ngtcp2_vec* data,
     size_t count,
     size_t max_count_hint) {
-  int status = bob::Status::STATUS_END;
+  int status = bob::Status::STATUS_EOS;
   finished_ = true;
   std::move(next)(status, nullptr, 0, [](size_t len) {});
   return status;
@@ -607,8 +607,9 @@ void StreamSource::End(const FunctionCallbackInfo<Value>& args) {
   StreamSource* source;
   ASSIGN_OR_RETURN_UNWRAP(&source, args.Holder());
   source->set_closed();
-  if (source->owner())
+  if (source->owner()) {
     source->owner()->Resume();
+  }
 }
 
 void StreamSource::Write(const FunctionCallbackInfo<Value>& args) {

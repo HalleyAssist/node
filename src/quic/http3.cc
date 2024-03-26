@@ -454,8 +454,6 @@ ssize_t Http3Application::ReadData(
       case bob::Status::STATUS_WAIT:
         // Fall through
       case bob::Status::STATUS_EOS:
-        return;
-      case bob::Status::STATUS_END:
         *pflags |= NGHTTP3_DATA_FLAG_EOF;
         if (UNLIKELY(stream->trailers())) {
           *pflags |= NGHTTP3_DATA_FLAG_NO_END_STREAM;

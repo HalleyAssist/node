@@ -498,6 +498,8 @@ void Stream::ProcessInbound() {
 
   Debug(this, "Releasing the inbound queue to the consumer");
 
+  int chunks = inbound_.length();
+  
   Maybe<size_t> amt = inbound_.Release(inbound_consumer_);
   if (amt.IsNothing()) {
     Debug(this, "Failed to process the inbound queue");
@@ -505,7 +507,7 @@ void Stream::ProcessInbound() {
   }
   size_t len = amt.FromJust();
 
-  Debug(this, "Released %" PRIu64 " bytes to consumer", len);
+  Debug(this, "Released %" PRIu64 " bytes to consumer over %d chunks", len, inbound_.chunks());
   IncrementStat(&StreamStats::max_offset, len);
 
   if (session_)
@@ -542,9 +544,10 @@ void Stream::ReceiveData(
     size_t datalen,
     uint64_t offset) {
   CHECK(!is_destroying());
-  Debug(this, "Receiving %d bytes. Final? %s",
+  Debug(this, "Receiving %d bytes on %s. Final? %s (%d)\n",
         datalen,
-        flags & NGTCP2_STREAM_DATA_FLAG_FIN ? "yes" : "no");
+        session()->is_server() ? "server" : "client",
+        (flags & NGTCP2_STREAM_DATA_FLAG_FIN) ? "yes" : "no", flags);
 
   // ngtcp2 guarantees that datalen will only be 0 if fin is set.
   DCHECK_IMPLIES(datalen == 0, flags & NGTCP2_STREAM_DATA_FLAG_FIN);
@@ -576,6 +579,14 @@ void Stream::ReceiveData(
   }
 
   ProcessInbound();
+}
+
+void Stream::ResetStreamWrite(const QuicError& error) {
+  if (!session()) return;
+  CHECK_EQ(error.type, QuicError::Type::APPLICATION);
+  Session::SendSessionScope send_scope(session());
+  session()->ShutdownStream(id_, error.code);
+  state_->read_ended = 1;
 }
 
 void Stream::ResetStream(const QuicError& error) {

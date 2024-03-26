@@ -256,6 +256,9 @@ class Buffer final : public bob::SourceImpl<ngtcp2_vec>,
   // length is incremental by Push and decremented by Seek.
   inline size_t remaining() const { return remaining_; }
 
+  // Returns the total remaining number of unacknowledged bytes.
+  inline size_t chunks() const { return queue_.size(); }
+
   // Flushes the entire inbound queue into a v8::Local<v8::Array>
   // of Uint8Array instances, returning the total number of bytes
   // released to the consumer.

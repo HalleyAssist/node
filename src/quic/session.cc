@@ -3296,8 +3296,8 @@ bool Session::Application::SendPendingData() {
 
     ssize_t nwrite = WriteVStream(&path, pos, &ndatalen, stream_data);
     if (stream_data.id >= 0) {
-      Debug(session(),
-            "Stream %llu data:\n"
+      Debug(session(), 
+            "Writing Stream %llu data:\n"
             "\tnwrite = %lld\n"
             "\tndatalen = %lld\n"
             "\tremaining = %lld\n"
@@ -3518,6 +3518,21 @@ void DefaultApplication::ResumeStream(stream_id id) {
   ScheduleStream(id);
 }
 
+void DefaultApplication::StreamReset(stream_id id, error_code app_error_code) {
+  /*BaseObjectPtr<Stream> stream = session()->FindStream(id);
+  QuicError qe = kQuicNoError;
+
+  if (stream) {
+    if(app_error_code != NGTCP2_NO_ERROR) {
+      qe.type = QuicError::Type::APPLICATION;
+      qe.code = app_error_code;
+    }
+    stream->ResetStream(qe);
+  }*/
+
+  // Called when the remote end resets the stream
+}
+
 bool DefaultApplication::ReceiveStreamData(
     uint32_t flags,
     stream_id id,
@@ -3530,7 +3545,9 @@ bool DefaultApplication::ReceiveStreamData(
   // if the datalen is greater than 0, otherwise, we ignore
   // the packet. ngtcp2 should be handling this for us,
   // but we handle it just to be safe.
-  if (UNLIKELY(datalen == 0))
+  // MH: this is wrong, we need to handle empty stream frames as
+  //     they can be used to signal the end of a stream
+  if (UNLIKELY(datalen == 0 && !flags))
     return true;
 
   // Ensure that the Stream exists.
@@ -3578,7 +3595,6 @@ int DefaultApplication::GetStreamData(StreamData* stream_data) {
       case bob::Status::STATUS_WAIT:
         return;
       case bob::Status::STATUS_EOS:
-      case bob::Status::STATUS_END:
         stream_data->fin = 1;
     }
 
@@ -3604,7 +3620,6 @@ int DefaultApplication::GetStreamData(StreamData* stream_data) {
         kMaxVectorCount);
     switch (ret) {
       case bob::Status::STATUS_EOS:
-      case bob::Status::STATUS_END:
         stream_data->fin = 1;
         break;
     }
