@@ -3518,6 +3518,19 @@ void DefaultApplication::ResumeStream(stream_id id) {
   ScheduleStream(id);
 }
 
+void DefaultApplication::StreamReset(stream_id id, error_code app_error_code) {
+  BaseObjectPtr<Stream> stream = session()->FindStream(id);
+  QuicError qe = kQuicNoError;
+
+  if (stream) {
+    if(app_error_code != NGTCP2_NO_ERROR) {
+      qe.type = QuicError::Type::APPLICATION;
+      qe.code = app_error_code;
+    }
+    stream->ResetStream(qe);
+  }
+}
+
 bool DefaultApplication::ReceiveStreamData(
     uint32_t flags,
     stream_id id,
