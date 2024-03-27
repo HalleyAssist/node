@@ -607,8 +607,10 @@ void StreamSource::End(const FunctionCallbackInfo<Value>& args) {
   StreamSource* source;
   ASSIGN_OR_RETURN_UNWRAP(&source, args.Holder());
   source->set_closed();
-  if (source->owner())
+  if (source->owner()) {
     source->owner()->Resume();
+    source->owner()->ResetStream();
+  }
 }
 
 void StreamSource::Write(const FunctionCallbackInfo<Value>& args) {

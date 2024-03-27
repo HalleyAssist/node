@@ -3519,7 +3519,7 @@ void DefaultApplication::ResumeStream(stream_id id) {
 }
 
 void DefaultApplication::StreamReset(stream_id id, error_code app_error_code) {
-  BaseObjectPtr<Stream> stream = session()->FindStream(id);
+  /*BaseObjectPtr<Stream> stream = session()->FindStream(id);
   QuicError qe = kQuicNoError;
 
   if (stream) {
@@ -3528,7 +3528,9 @@ void DefaultApplication::StreamReset(stream_id id, error_code app_error_code) {
       qe.code = app_error_code;
     }
     stream->ResetStream(qe);
-  }
+  }*/
+
+  // Called when the remote end resets the stream
 }
 
 bool DefaultApplication::ReceiveStreamData(
