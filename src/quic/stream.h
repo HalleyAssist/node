@@ -193,6 +193,9 @@ class Stream final : public AsyncWrap,
   void BeginHeaders(HeadersKind kind);
 
   void OnBlocked();
+  bool IsBlocked();
+  void Unblock();
+  
   void OnReset(error_code app_error_code);
 
   void Commit(size_t ammount);
@@ -295,6 +298,7 @@ class Stream final : public AsyncWrap,
   BaseObjectPtr<Session> session_;
   AliasedStruct<State> state_;
   stream_id id_;
+  bool blocked = false;
   bool destroyed_ = false;
   bool destroying_ = false;
 

@@ -269,11 +269,21 @@ void Stream::OnBlocked() {
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
 
+  blocked = true;
+
   BaseObjectPtr<Stream> ptr(this);
   USE(state->stream_blocked_callback()->Call(
       env()->context(),
       object(),
       0, nullptr));
+}
+
+bool Stream::IsBlocked(){
+  return blocked;
+}
+
+void Stream::Unblock() {
+  blocked = false;
 }
 
 void Stream::OnReset(error_code app_error_code) {
