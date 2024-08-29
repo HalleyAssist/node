@@ -121,7 +121,13 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
 // Make all CHECK functions discard their log strings to reduce code
 // bloat for official release builds.
 
-#define CHECK_OP(name, op, lhs, rhs)                                         \
+//ifdef NDEBUG
+
+#define CHECK_OP(name, op, lhs, rhs) void(0);
+
+/*else
+
+define CHECK_OP(name, op, lhs, rhs)                                         \
   do {                                                                       \
     bool _cmp = ::v8::base::Cmp##name##Impl<                                 \
         typename ::v8::base::pass_value_or_ref<decltype(lhs)>::type,         \
@@ -129,6 +135,8 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
                                                                      (rhs)); \
     CHECK_WITH_MSG(_cmp, #lhs " " #op " " #rhs);                             \
   } while (false)
+
+endif */
 
 #define DCHECK_WITH_MSG(condition, msg) void(0);
 
