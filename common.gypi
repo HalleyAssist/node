@@ -173,7 +173,7 @@
             }],
           ],
         },
-        'cflags': [ '-O3' ],
+        'cflags': [ '-O3', '-DNDEBUG' ],
         'conditions': [
           ['enable_lto=="true"', {
             'cflags': ['<(lto)'],
