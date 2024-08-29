@@ -40,9 +40,6 @@ using v8::String;
 using v8::Value;
 
 namespace crypto {
-static const char* const root_certs[] = {
-#include "node_root_certs.h"  // NOLINT(build/include_order)
-};
 
 static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
 
@@ -194,23 +191,6 @@ X509_STORE* NewRootCertStore() {
   static Mutex root_certs_vector_mutex;
   Mutex::ScopedLock lock(root_certs_vector_mutex);
 
-  if (root_certs_vector.empty() &&
-      per_process::cli_options->ssl_openssl_cert_store == false) {
-    for (size_t i = 0; i < arraysize(root_certs); i++) {
-      X509* x509 =
-          PEM_read_bio_X509(NodeBIO::NewFixed(root_certs[i],
-                                              strlen(root_certs[i])).get(),
-                            nullptr,   // no re-use of X509 structure
-                            NoPasswordCallback,
-                            nullptr);  // no callback data
-
-      // Parse errors from the built-in roots are fatal.
-      CHECK_NOT_NULL(x509);
-
-      root_certs_vector.push_back(x509);
-    }
-  }
-
   X509_STORE* store = X509_STORE_new();
   if (*system_cert_path != '\0') {
     ERR_set_mark();
@@ -221,11 +201,6 @@ X509_STORE* NewRootCertStore() {
   Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
   if (per_process::cli_options->ssl_openssl_cert_store) {
     X509_STORE_set_default_paths(store);
-  } else {
-    for (X509* cert : root_certs_vector) {
-      X509_up_ref(cert);
-      X509_STORE_add_cert(store, cert);
-    }
   }
 
   return store;
@@ -233,19 +208,9 @@ X509_STORE* NewRootCertStore() {
 
 void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Value> result[arraysize(root_certs)];
-
-  for (size_t i = 0; i < arraysize(root_certs); i++) {
-    if (!String::NewFromOneByte(
-            env->isolate(),
-            reinterpret_cast<const uint8_t*>(root_certs[i]))
-            .ToLocal(&result[i])) {
-      return;
-    }
-  }
 
   args.GetReturnValue().Set(
-      Array::New(env->isolate(), result, arraysize(root_certs)));
+      Array::New(env->isolate()));
 }
 
 bool SecureContext::HasInstance(Environment* env, const Local<Value>& value) {
