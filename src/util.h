@@ -125,7 +125,7 @@ void DumpBacktrace(FILE* fp);
     /* Make sure that this struct does not end up in inline code, but      */ \
     /* rather in a read-only data section when modifying this code.        */ \
     static const node::AssertionInfo args = {                                 \
-      __FILE__ ":" STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME           \
+      "", "", PRETTY_FUNCTION_NAME           \
     };                                                                        \
     node::Assert(args);                                                       \
   } while (0)

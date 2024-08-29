@@ -28,21 +28,11 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
 #else
 [[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
     void V8_Fatal(const char* format, ...);
-#if !defined(OFFICIAL_BUILD)
 // In non-official release, include full error message, but drop file & line
 // numbers. It saves binary size to drop the |file| & |line| as opposed to just
 // passing in "", 0 for them.
 #define FATAL(...) V8_Fatal(__VA_ARGS__)
-#else
-// FATAL(msg) -> IMMEDIATE_CRASH()
-// FATAL(msg, ...) -> V8_Fatal(msg, ...)
-#define FATAL_HELPER(_7, _6, _5, _4, _3, _2, _1, _0, ...) _0
-#define FATAL_DISCARD_ARG(arg) IMMEDIATE_CRASH()
-#define FATAL(...)                                                            \
-  FATAL_HELPER(__VA_ARGS__, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, \
-               V8_Fatal, FATAL_DISCARD_ARG)                                   \
-  (__VA_ARGS__)
-#endif  // !defined(OFFICIAL_BUILD)
+
 #endif  // DEBUG
 
 #define UNIMPLEMENTED() FATAL("unimplemented code")
@@ -62,11 +52,7 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
 
 // In official builds, assume all check failures can be debugged given just the
 // stack trace.
-#if !defined(DEBUG) && defined(OFFICIAL_BUILD)
-#define CHECK_FAILED_HANDLER(message) FATAL("ignored")
-#else
-#define CHECK_FAILED_HANDLER(message) FATAL("Check failed: %s.", message)
-#endif
+#define CHECK_FAILED_HANDLER(message) FATAL("check failed")
 
 // CHECK dies with a fatal error if condition is not true.  It is *not*
 // controlled by DEBUG, so the check will be executed regardless of

@@ -102,7 +102,7 @@ void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
         isolate_->GetDataFromSnapshotOnce<TypeName>((*indexes)[i++]);          \
     Local<TypeName> field;                                                     \
     if (!maybe_field.ToLocal(&field)) {                                        \
-      fprintf(stderr, "Failed to deserialize " #PropertyName "\n");            \
+      fprintf(stderr, "Failed to deserialize\n");            \
     }                                                                          \
     PropertyName##_.Set(isolate_, field);                                      \
   } while (0);
@@ -1451,7 +1451,7 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
       Local<TypeName> field;                                                   \
       if (!maybe_field.ToLocal(&field)) {                                      \
         fprintf(stderr,                                                        \
-                "Failed to deserialize environment " #type " " #PropertyName   \
+                "Failed to deserialize environment " #type                     \
                 "\n");                                                         \
       }                                                                        \
       set_##PropertyName(field);                                               \
