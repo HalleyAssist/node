@@ -567,6 +567,8 @@ void Endpoint::RemoveCloseListener(CloseListener* listener) {
 void Endpoint::Close(CloseListener::Context context, int status) {
   RecordTimestamp(&EndpointStats::destroyed_at);
 
+  printf("Endpoint::Close %d\n", outbound_.size());
+
   // Cancel any remaining outbound packets. Ideally there wouldn't
   // be any, but at this point there's nothing else we can do.
   SendWrap::Queue outbound;
@@ -1258,6 +1260,7 @@ void Endpoint::MaybeStopReceiving() {
   receiving_ = false;
   Debug(env_, DebugCategory::QUICENDPOINT, "Endpoint: Stop receiving\n");
   udp_.StopReceiving();
+  Close(CloseListener::Context::CLOSE, 0);
 }
 
 void Endpoint::Unref() {
@@ -1386,6 +1389,7 @@ std::shared_ptr<SocketAddress> Endpoint::UDP::local_address() const {
 }
 
 int Endpoint::UDP::Bind(const Endpoint::Config& config) {
+  puts("Bind");
   Debug(this, "Binding...");
   int flags = 0;
   if (config.local_address->family() == AF_INET6 && config.ipv6_only)
@@ -1425,7 +1429,9 @@ int Endpoint::UDP::Bind(const Endpoint::Config& config) {
 
 void Endpoint::UDP::CloseHandle() {
   Debug(this, "Closing...");
+  puts("CloseHandle");
   if (is_closing()) return;
+  puts("CloseHandle 2");
   env()->CloseHandle(reinterpret_cast<uv_handle_t*>(&handle_), ClosedCb);
 }
 
@@ -1454,6 +1460,7 @@ int Endpoint::UDP::StartReceiving() {
 
 void Endpoint::UDP::StopReceiving() {
   if (!IsHandleClosing()) {
+    puts("StopRecv");
     Debug(this, "Stop receiving packets");
     USE(uv_udp_recv_stop(&handle_));
   }
@@ -1712,11 +1719,15 @@ void EndpointWrap::CloseWrapper(const FunctionCallbackInfo<Value>& args) {
   EndpointWrap* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.Holder());
 
-  endpoint->state_->listening = 0;
   Endpoint::Lock lock(endpoint->inner_);
+
   endpoint->inner_->RemoveInitialPacketListener(endpoint);
-  // While listening, this shouldn't be weak
-  endpoint->MakeWeak();
+  endpoint->state_->listening = 0;
+  
+  if(endpoint->sessions_.empty()) {
+    endpoint->MakeWeak();
+    //endpoint->Close(CloseListener::Context::CLOSE, 0);
+  }
 }
 
 void EndpointWrap::StartWaitForPendingCallbacks(
@@ -1994,7 +2005,6 @@ void EndpointWrap::Listen(
   state_->listening = 1;
   Endpoint::Lock lock(inner_);
   inner_->AddInitialPacketListener(this);
-  // While listening, this shouldn't be weak
   ClearWeak();
 }
 
@@ -2184,8 +2194,10 @@ void EndpointWrap::RemoveSession(
     inner_->DecrementSocketAddressCounter(addr);
   }
   sessions_.erase(cid);
-  if (!state_->listening && sessions_.empty())
+  if (!state_->listening && sessions_.empty()) {
     MakeWeak();
+    puts("Removed last session (make weak)");
+  }
 }
 
 void EndpointWrap::SendPacket(
