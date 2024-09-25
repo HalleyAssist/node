@@ -826,6 +826,8 @@ class EndpointWrap final : public AsyncWrap,
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static void CloseWrapper(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   EndpointWrap(
       Environment* env,
       v8::Local<v8::Object> object,

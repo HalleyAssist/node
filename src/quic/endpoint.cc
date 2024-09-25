@@ -1258,6 +1258,7 @@ void Endpoint::MaybeStopReceiving() {
   receiving_ = false;
   Debug(env_, DebugCategory::QUICENDPOINT, "Endpoint: Stop receiving\n");
   udp_.StopReceiving();
+  Close(CloseListener::Context::CLOSE, 0);
 }
 
 void Endpoint::Unref() {
@@ -1593,6 +1594,11 @@ Local<FunctionTemplate> EndpointWrap::GetConstructorTemplate(
         LocalAddress);
     env->SetProtoMethod(tmpl, "ref", Ref);
     env->SetProtoMethod(tmpl, "unref", Unref);
+    env->SetProtoMethod(
+        tmpl,
+        "close",
+        CloseWrapper);
+
     state->set_endpoint_constructor_template(tmpl);
   }
   return tmpl;
@@ -1701,6 +1707,21 @@ void EndpointWrap::StartListen(const FunctionCallbackInfo<Value>& args) {
   endpoint->Listen(
       options->options(),
       BaseObjectPtr<crypto::SecureContext>(context));
+}
+
+void EndpointWrap::CloseWrapper(const FunctionCallbackInfo<Value>& args) {
+  EndpointWrap* endpoint;
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.Holder());
+
+  Endpoint::Lock lock(endpoint->inner_);
+
+  endpoint->inner_->RemoveInitialPacketListener(endpoint);
+  endpoint->state_->listening = 0;
+  
+  if(endpoint->sessions_.empty()) {
+    endpoint->MakeWeak();
+    //endpoint->Close(CloseListener::Context::CLOSE, 0);
+  }
 }
 
 void EndpointWrap::StartWaitForPendingCallbacks(
@@ -1978,8 +1999,7 @@ void EndpointWrap::Listen(
   state_->listening = 1;
   Endpoint::Lock lock(inner_);
   inner_->AddInitialPacketListener(this);
-  // While listening, this shouldn't be weak
-  this->ClearWeak();
+  ClearWeak();
 }
 
 void EndpointWrap::OnEndpointDone() {
@@ -2167,8 +2187,9 @@ void EndpointWrap::RemoveSession(
     inner_->DecrementSocketAddressCounter(addr);
   }
   sessions_.erase(cid);
-  if (!state_->listening && sessions_.empty())
+  if (!state_->listening && sessions_.empty()) {
     MakeWeak();
+  }
 }
 
 void EndpointWrap::SendPacket(

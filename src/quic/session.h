@@ -1034,6 +1034,8 @@ class Session final : public AsyncWrap,
 
   inline void set_wrapped() { state_->wrapped = 1; }
 
+  inline CID scid() const { return scid_; }
+
   void SetSessionTicketAppData(const SessionTicketAppData& app_data);
 
   SessionTicketAppData::Status GetSessionTicketAppData(
