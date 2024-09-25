@@ -1593,6 +1593,11 @@ Local<FunctionTemplate> EndpointWrap::GetConstructorTemplate(
         LocalAddress);
     env->SetProtoMethod(tmpl, "ref", Ref);
     env->SetProtoMethod(tmpl, "unref", Unref);
+    env->SetProtoMethod(
+        tmpl,
+        "close",
+        CloseWrapper);
+
     state->set_endpoint_constructor_template(tmpl);
   }
   return tmpl;
@@ -1701,6 +1706,17 @@ void EndpointWrap::StartListen(const FunctionCallbackInfo<Value>& args) {
   endpoint->Listen(
       options->options(),
       BaseObjectPtr<crypto::SecureContext>(context));
+}
+
+void EndpointWrap::CloseWrapper(const FunctionCallbackInfo<Value>& args) {
+  EndpointWrap* endpoint;
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.Holder());
+
+  endpoint->state_->listening = 0;
+  Endpoint::Lock lock(endpoint->inner_);
+  endpoint->inner_->RemoveInitialPacketListener(endpoint);
+  // While listening, this shouldn't be weak
+  endpoint->MakeWeak();
 }
 
 void EndpointWrap::StartWaitForPendingCallbacks(
@@ -1979,7 +1995,7 @@ void EndpointWrap::Listen(
   Endpoint::Lock lock(inner_);
   inner_->AddInitialPacketListener(this);
   // While listening, this shouldn't be weak
-  this->ClearWeak();
+  ClearWeak();
 }
 
 void EndpointWrap::OnEndpointDone() {
