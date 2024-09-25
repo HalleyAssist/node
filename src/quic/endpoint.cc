@@ -1347,7 +1347,7 @@ Local<FunctionTemplate> Endpoint::UDP::GetConstructorTemplate(
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         HandleWrap::kInternalFieldCount);
     tmpl->SetClassName(
-        FIXED_ONE_BYTE_STRING(env->isolate(), "Session::UDP"));
+        FIXED_ONE_BYTE_STRING(env->isolate(), "Endpoint::UDP"));
     state->set_udp_constructor_template(tmpl);
   }
   return tmpl;
