@@ -285,7 +285,7 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[2]->IsUint32());
+  //CHECK(args[2]->Uint32Value(env->context()).IsJust());
   // explicit cast to fit to libuv's type expectation
   int port = static_cast<int>(args[2].As<Uint32>()->Value());
   Connect<sockaddr_in>(args,

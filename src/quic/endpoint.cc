@@ -1983,7 +1983,6 @@ void EndpointWrap::Listen(
 }
 
 void EndpointWrap::OnEndpointDone() {
-  MakeWeak();
   state_->listening = 0;
 
   Debug(this, "Calling endpoint_done callback");
