@@ -1474,7 +1474,7 @@ int Endpoint::UDP::SendPacket(BaseObjectPtr<SendWrap> req) {
       &buf, 1,
       dest,
       uv_udp_send_cb{[](uv_udp_send_t* req, int status) {
-        std::unique_ptr<SendWrap> ptr(
+        BaseObjectPtr<SendWrap> ptr(
           static_cast<SendWrap*>(UdpSendWrap::from_req(req)));
         ptr->Done(status);
       }});
@@ -1983,7 +1983,6 @@ void EndpointWrap::Listen(
 }
 
 void EndpointWrap::OnEndpointDone() {
-  MakeWeak();
   state_->listening = 0;
 
   Debug(this, "Calling endpoint_done callback");
