@@ -493,7 +493,6 @@ Endpoint::SendWrap::SendWrap(
       endpoint_(std::move(endpoint)),
       self_ptr_(this) {
   Debug(this, "Created");
-  MakeWeak();
 }
 
 Endpoint::SendWrap::~SendWrap(){
@@ -573,8 +572,10 @@ void Endpoint::Close(CloseListener::Context context, int status) {
   // be any, but at this point there's nothing else we can do.
   SendWrap::Queue outbound;
   outbound_.swap(outbound);
-  for (const auto& packet : outbound)
+  for (const auto& packet : outbound) {
     packet->Done(UV_ECANCELED);
+    packet->MakeWeak();
+  }
   outbound.clear();
   pending_outbound_ = 0;
 
@@ -1018,6 +1019,7 @@ void Endpoint::ProcessOutbound() {
     err = udp_.SendPacket(packet);
     if (err) {
       packet->Done(err);
+      packet->MakeWeak();
       break;
     }
   }
@@ -1029,7 +1031,8 @@ void Endpoint::ProcessOutbound() {
     while (!queue.empty()) {
       auto& packet = queue.front();
       queue.pop_front();
-      packet->Done(UV_ECANCELED);
+      packet->Done(UV_ECANCELED);    
+      packet->MakeWeak();
     }
     ProcessSendFailure(err);
   }
@@ -1068,6 +1071,7 @@ void Endpoint::SendPacket(BaseObjectPtr<SendWrap> packet) {
         "Endpoint: Enqueing outbound packet\n");
   {
     Lock lock(this);
+    packet->ClearWeak();
     outbound_.emplace_back(std::move(packet));
   }
   outbound_signal_.Send();
