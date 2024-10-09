@@ -22,6 +22,7 @@
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
+#include <ngtcp2/ngtcp2_crypto.h>
 #include <nghttp3/nghttp3.h>  // NGHTTP3_ALPN_H3
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -700,7 +701,7 @@ bool SetTransportParams(Session* session, const crypto::SSLPointer& ssl) {
   ngtcp2_transport_params params;
   ngtcp2_conn_get_local_transport_params(session->connection(), &params);
   uint8_t buf[512];
-  ssize_t nwrite = ngtcp2_encode_transport_params(
+  ssize_t nwrite = ngtcp2_transport_params_encode(
       buf,
       arraysize(buf),
       NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
@@ -832,30 +833,30 @@ void InitializeSecureContext(
   SSL_CTX_set_quic_method(**sc, &quic_method);
 }
 
-ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level) {
+ngtcp2_encryption_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level) {
   switch (ossl_level) {
   case ssl_encryption_initial:
-    return NGTCP2_CRYPTO_LEVEL_INITIAL;
+    return NGTCP2_ENCRYPTION_LEVEL_INITIAL;
   case ssl_encryption_early_data:
-    return NGTCP2_CRYPTO_LEVEL_EARLY;
+    return NGTCP2_ENCRYPTION_LEVEL_0RTT;
   case ssl_encryption_handshake:
-    return NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
+    return NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE;
   case ssl_encryption_application:
-    return NGTCP2_CRYPTO_LEVEL_APPLICATION;
+    return NGTCP2_ENCRYPTION_LEVEL_1RTT;
   default:
     UNREACHABLE();
   }
 }
 
-const char* crypto_level_name(ngtcp2_crypto_level level) {
+const char* crypto_level_name(ngtcp2_encryption_level level) {
   switch (level) {
-    case NGTCP2_CRYPTO_LEVEL_INITIAL:
+    case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
       return "initial";
-    case NGTCP2_CRYPTO_LEVEL_EARLY:
+    case NGTCP2_ENCRYPTION_LEVEL_0RTT:
       return "early";
-    case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+    case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
       return "handshake";
-    case NGTCP2_CRYPTO_LEVEL_APPLICATION:
+    case NGTCP2_ENCRYPTION_LEVEL_1RTT:
       return "app";
     default:
       UNREACHABLE();

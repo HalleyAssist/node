@@ -566,7 +566,7 @@ class Session final : public AsyncWrap,
     // when ngtcp2 determines that it has received an acknowledgement
     // for crypto data at the specified level. This is our indication
     // that the data for that level can be released.
-    void AcknowledgeCryptoData(ngtcp2_crypto_level level, size_t datalen);
+    void AcknowledgeCryptoData(ngtcp2_encryption_level level, size_t datalen);
 
     // Cancels the TLS handshake and returns the number of unprocessed
     // bytes that were still in the queue when canceled.
@@ -581,10 +581,10 @@ class Session final : public AsyncWrap,
     std::shared_ptr<v8::BackingStore> ocsp_response(bool release = true);
 
     // Returns ngtcp2's understanding of the current inbound crypto level
-    ngtcp2_crypto_level read_crypto_level() const;
+    ngtcp2_encryption_level read_crypto_level() const;
 
     // Returns ngtcp2's understanding of the current outbound crypto level
-    ngtcp2_crypto_level write_crypto_level() const;
+    ngtcp2_encryption_level write_crypto_level() const;
 
     // TLS Keylogging is enabled per-Session by attaching an handler to the
     // "keylog" event. Each keylog line is emitted to JavaScript where it can
@@ -618,7 +618,7 @@ class Session final : public AsyncWrap,
     // remote transport parameters, and begin initialization of
     // the Application that was selected.
     bool OnSecrets(
-        ngtcp2_crypto_level level,
+        ngtcp2_encryption_level level,
         const uint8_t* rx_secret,
         const uint8_t* tx_secret,
         size_t secretlen);
@@ -633,7 +633,7 @@ class Session final : public AsyncWrap,
     // For every chunk, we move the TLS handshake further along until it
     // is complete.
     int Receive(
-        ngtcp2_crypto_level crypto_level,
+        ngtcp2_encryption_level crypto_level,
         uint64_t offset,
         const uint8_t* data,
         size_t datalen);
@@ -665,7 +665,7 @@ class Session final : public AsyncWrap,
     // here but we do record statistics on how long the handshake
     // data is foreced to be kept in memory.
     void WriteHandshake(
-        ngtcp2_crypto_level level,
+        ngtcp2_encryption_level level,
         const uint8_t* data,
         size_t datalen);
 
@@ -713,7 +713,7 @@ class Session final : public AsyncWrap,
 
    private:
     bool SetSecrets(
-        ngtcp2_crypto_level level,
+        ngtcp2_encryption_level level,
         const uint8_t* rx_secret,
         const uint8_t* tx_secret,
         size_t secretlen);
@@ -1375,7 +1375,7 @@ class Session final : public AsyncWrap,
   // key updates.
   static int OnReceiveCryptoData(
       ngtcp2_conn* conn,
-      ngtcp2_crypto_level crypto_level,
+      ngtcp2_encryption_level crypto_level,
       uint64_t offset,
       const uint8_t* data,
       size_t datalen,
@@ -1415,7 +1415,7 @@ class Session final : public AsyncWrap,
   // part of the QUIC reliability mechanism.
   static int OnAckedCryptoOffset(
       ngtcp2_conn* conn,
-      ngtcp2_crypto_level crypto_level,
+      ngtcp2_encryption_level crypto_level,
       uint64_t offset,
       uint64_t datalen,
       void* user_data);

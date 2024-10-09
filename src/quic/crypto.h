@@ -145,8 +145,8 @@ bool ValidateToken(
 // Get the ALPN protocol identifier that was negotiated for the session
 v8::Local<v8::Value> GetALPNProtocol(const Session& session);
 
-ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level);
-const char* crypto_level_name(ngtcp2_crypto_level level);
+ngtcp2_encryption_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level);
+const char* crypto_level_name(ngtcp2_encryption_level level);
 
 // SessionTicketAppData is a utility class that is used only during
 // the generation or access of TLS stateless sesson tickets. It

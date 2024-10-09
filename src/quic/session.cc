@@ -21,7 +21,7 @@
 #include "node_sockaddr-inl.h"
 #include "v8.h"
 
-#include <ngtcp2/ngtcp2_crypto_openssl.h>
+#include <ngtcp2/ngtcp2.h>
 #include <vector>
 
 namespace node {
@@ -246,7 +246,7 @@ Session::TransportParams::TransportParams(
   ack_delay_exponent = options->ack_delay_exponent;
   max_datagram_frame_size = options->max_datagram_frame_size;
   disable_active_migration = options->disable_active_migration ? 1 : 0;
-  preferred_address_present = 0;
+  preferred_addr_present = 0;
   stateless_reset_token_present = 0;
   retry_scid_present = 0;
 
@@ -267,7 +267,7 @@ Session::TransportParams::TransportParams(
 
 void Session::TransportParams::SetPreferredAddress(
     const std::shared_ptr<SocketAddress>& address) {
-  preferred_address_present = 1;
+  preferred_addr_present = 1;
   switch (address->family()) {
     case AF_INET: {
       const sockaddr_in* src =
@@ -369,7 +369,7 @@ void Session::CryptoContext::MaybeSetEarlySession(
 }
 
 void Session::CryptoContext::AcknowledgeCryptoData(
-    ngtcp2_crypto_level level,
+    ngtcp2_encryption_level level,
     size_t datalen) {
   // It is possible for the Session to have been destroyed but not yet
   // deconstructed. In such cases, we want to ignore the callback as there
@@ -435,11 +435,11 @@ std::string Session::CryptoContext::selected_alpn() const {
       std::string();
 }
 
-ngtcp2_crypto_level Session::CryptoContext::read_crypto_level() const {
+ngtcp2_encryption_level Session::CryptoContext::read_crypto_level() const {
   return from_ossl_level(SSL_quic_read_level(ssl_.get()));
 }
 
-ngtcp2_crypto_level Session::CryptoContext::write_crypto_level() const {
+ngtcp2_encryption_level Session::CryptoContext::write_crypto_level() const {
   return from_ossl_level(SSL_quic_write_level(ssl_.get()));
 }
 
@@ -606,7 +606,7 @@ void Session::CryptoContext::OnOCSPDone(
 }
 
 bool Session::CryptoContext::OnSecrets(
-    ngtcp2_crypto_level level,
+    ngtcp2_encryption_level level,
     const uint8_t* rx_secret,
     const uint8_t* tx_secret,
     size_t secretlen) {
@@ -620,7 +620,7 @@ bool Session::CryptoContext::OnSecrets(
     return false;
   }
 
-  if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION) {
+  if (level == NGTCP2_ENCRYPTION_LEVEL_1RTT) {
     session_->set_remote_transport_params();
     if (!session()->InitApplication()) {
       Debug(session(), "Failure initializing the application");
@@ -686,7 +686,7 @@ int Session::CryptoContext::OnTLSStatus() {
 }
 
 int Session::CryptoContext::Receive(
-    ngtcp2_crypto_level crypto_level,
+    ngtcp2_encryption_level crypto_level,
     uint64_t offset,
     const uint8_t* data,
     size_t datalen) {
@@ -785,7 +785,7 @@ void Session::CryptoContext::set_tls_alert(int err) {
 }
 
 void Session::CryptoContext::WriteHandshake(
-    ngtcp2_crypto_level level,
+    ngtcp2_encryption_level level,
     const uint8_t* data,
     size_t datalen) {
   printf("%s Writing %d bytes of %s handshake data.\n",
@@ -846,7 +846,7 @@ void Session::CryptoContext::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 bool Session::CryptoContext::SetSecrets(
-    ngtcp2_crypto_level level,
+    ngtcp2_encryption_level level,
     const uint8_t* rx_secret,
     const uint8_t* tx_secret,
     size_t secretlen) {
@@ -896,14 +896,14 @@ bool Session::CryptoContext::SetSecrets(
   session()->state_->stream_open_allowed = 1;
 
   switch (level) {
-  case NGTCP2_CRYPTO_LEVEL_EARLY:
+  case NGTCP2_ENCRYPTION_LEVEL_0RTT:
     crypto::LogSecret(
         ssl_,
         kQuicClientEarlyTrafficSecret,
         rx_secret,
         secretlen);
     break;
-  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
     crypto::LogSecret(
         ssl_,
         kQuicClientHandshakeTrafficSecret,
@@ -915,7 +915,7 @@ bool Session::CryptoContext::SetSecrets(
         tx_secret,
         secretlen);
     break;
-  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
+  case NGTCP2_ENCRYPTION_LEVEL_1RTT:
     crypto::LogSecret(
         ssl_,
         kQuicClientTrafficSecret0,
@@ -1198,7 +1198,7 @@ Session::Session(
           NGTCP2_CRYPTO_SIDE_SERVER) {
   TransportParams transport_params(options, scid, ocid);
   transport_params.GenerateStatelessResetToken(endpoint, scid_);
-  if (transport_params.preferred_address_present) {
+  if (transport_params.preferred_addr_present) {
     transport_params.GeneratePreferredAddressToken(
         cid_strategy_.get(),
         this,
@@ -2112,7 +2112,7 @@ bool Session::SendConnectionClose() {
   // ImmediateConnectionClose to send a stateless connection close to
   // the peer.
   if (crypto_context()->write_crypto_level() ==
-        NGTCP2_CRYPTO_LEVEL_INITIAL) {
+        NGTCP2_ENCRYPTION_LEVEL_INITIAL) {
     endpoint_->ImmediateConnectionClose(
         version(),
         dcid(),
@@ -2410,28 +2410,15 @@ void Session::UpdateDataStats() {
   if (state_->destroyed)
     return;
 
-  ngtcp2_conn_stat stat;
-  ngtcp2_conn_get_conn_stat(connection(), &stat);
+  ngtcp2_conn_info stat;
+  ngtcp2_conn_get_conn_info(connection(), &stat);
 
   SetStat(
       &SessionStats::bytes_in_flight,
       stat.bytes_in_flight);
-  SetStat(
-      &SessionStats::congestion_recovery_start_ts,
-      stat.congestion_recovery_start_ts);
   SetStat(&SessionStats::cwnd, stat.cwnd);
-  SetStat(&SessionStats::delivery_rate_sec, stat.delivery_rate_sec);
-  SetStat(&SessionStats::first_rtt_sample_ts, stat.first_rtt_sample_ts);
-  SetStat(&SessionStats::initial_rtt, stat.initial_rtt);
-  SetStat(&SessionStats::last_tx_pkt_ts,
-          reinterpret_cast<uint64_t>(stat.last_tx_pkt_ts));
   SetStat(&SessionStats::latest_rtt, stat.latest_rtt);
-  SetStat(&SessionStats::loss_detection_timer, stat.loss_detection_timer);
-  SetStat(&SessionStats::loss_time,
-          reinterpret_cast<uint64_t>(stat.loss_time));
-  SetStat(&SessionStats::max_udp_payload_size, stat.max_udp_payload_size);
   SetStat(&SessionStats::min_rtt, stat.min_rtt);
-  SetStat(&SessionStats::pto_count, stat.pto_count);
   SetStat(&SessionStats::rttvar, stat.rttvar);
   SetStat(&SessionStats::smoothed_rtt, stat.smoothed_rtt);
   SetStat(&SessionStats::ssthresh, stat.ssthresh);
@@ -2458,7 +2445,7 @@ void Session::UpdateIdleTimer() {
   if (state_->closing_timer_enabled)
     return;
   uint64_t now = uv_hrtime();
-  uint64_t expiry = ngtcp2_conn_get_idle_expiry(connection());
+  uint64_t expiry = ngtcp2_conn_get_expiry(connection());
   // nano to millis
   uint64_t timeout = expiry > now ? (expiry - now) / 1000000ULL : 1;
   if (timeout == 0) timeout = 1;
@@ -2513,11 +2500,11 @@ bool Session::is_handshake_completed() const {
 }
 
 bool Session::is_in_closing_period() const {
-  return ngtcp2_conn_is_in_closing_period(connection());
+  return ngtcp2_conn_in_closing_period(connection());
 }
 
 bool Session::is_in_draining_period() const {
-  return ngtcp2_conn_is_in_draining_period(connection());
+  return ngtcp2_conn_in_draining_period(connection());
 }
 
 bool Session::is_unable_to_send_packets() {
@@ -2533,7 +2520,7 @@ uint64_t Session::max_data_left() const {
 }
 
 uint64_t Session::max_local_streams_uni() const {
-  return ngtcp2_conn_get_max_local_streams_uni(connection());
+  return 4;
 }
 
 void Session::set_remote_transport_params() {
@@ -2615,39 +2602,49 @@ quic_version Session::version() const {
 const ngtcp2_callbacks Session::callbacks[2] = {
   // NGTCP2_CRYPTO_SIDE_CLIENT
   {
-    ngtcp2_crypto_client_initial_cb,
-    nullptr,
-    OnReceiveCryptoData,
-    OnHandshakeCompleted,
-    OnVersionNegotiation,
-    ngtcp2_crypto_encrypt_cb,
-    ngtcp2_crypto_decrypt_cb,
-    ngtcp2_crypto_hp_mask_cb,
-    OnReceiveStreamData,
-    OnAckedCryptoOffset,
-    OnAckedStreamDataOffset,
-    OnStreamOpen,
-    OnStreamClose,
-    OnStatelessReset,
-    ngtcp2_crypto_recv_retry_cb,
-    OnExtendMaxStreamsBidi,
-    OnExtendMaxStreamsUni,
-    OnRand,
-    OnGetNewConnectionID,
-    OnRemoveConnectionID,
-    ngtcp2_crypto_update_key_cb,
-    OnPathValidation,
-    OnSelectPreferredAddress,
-    OnStreamReset,
-    OnExtendMaxStreamsRemoteBidi,
-    OnExtendMaxStreamsRemoteUni,
-    OnExtendMaxStreamData,
-    OnConnectionIDStatus,
-    OnHandshakeConfirmed,
+    ngtcp2_crypto_client_initial_cb, // client_initial
+    nullptr, //recv_client_initial
+    OnReceiveCryptoData, // recv_crypto_data
+    OnHandshakeCompleted, // handshake_completed
+    OnVersionNegotiation, // recv_version_negotiation
+    ngtcp2_crypto_encrypt_cb, // encrypt
+    ngtcp2_crypto_decrypt_cb, // decrypt
+    ngtcp2_crypto_hp_mask_cb, // hp_mask
+    OnReceiveStreamData, // recv_stream_data
+    OnAckedCryptoOffset, // acked_crypto_offset
+    OnAckedStreamDataOffset, // acked_stream_data_offset
+    OnStreamOpen,   // stream_open
+    OnStreamClose, // stream_close
+    OnStatelessReset, // stateless_reset
+    ngtcp2_crypto_recv_retry_cb, // recv_retry
+    OnExtendMaxStreamsBidi, // extend_max_streams_bidi
+    OnExtendMaxStreamsUni, // extend_max_streams_uni
+    OnRand, // rand
+    OnGetNewConnectionID, // get_new_connection_id
+    OnRemoveConnectionID, // remove_connection_id
+    ngtcp2_crypto_update_key_cb, // update_key
+    OnPathValidation, // path_validation
+    OnSelectPreferredAddress, // select_preferred_address
+    OnStreamReset, // stream_reset
+    OnExtendMaxStreamsRemoteBidi, // extend_max_streams_remote_bidi
+    OnExtendMaxStreamsRemoteUni, // extend_max_streams_remote_uni
+    OnExtendMaxStreamData, // extend_max_stream_data
+    OnConnectionIDStatus, // dcid_status
+    OnHandshakeConfirmed, // handshake_confirmed
     nullptr,  // recv_new_token
-    ngtcp2_crypto_delete_crypto_aead_ctx_cb,
-    ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
-    OnDatagram
+    ngtcp2_crypto_delete_crypto_aead_ctx_cb, // delete_crypto_aead_ctx
+    ngtcp2_crypto_delete_crypto_cipher_ctx_cb, // delete_crypto_cipher_ctx
+    recv_datagram, // recv_datagram
+    nullptr, // ack_datagram
+    nullptr, // lost_datagram
+    nullptr, // get_path_challenge_data (TODO supply)
+    nullptr, // stream_stop_sending
+    nullptr, // version_negotiation (TODO supply)
+    nullptr, // recv_rx_key (TODO supply)
+    nullptr, // recv_tx_key (TODO supply)
+    nullptr, // recv_rx_key (TODO supply)
+
+
   },
   // NGTCP2_CRYPTO_SIDE_SERVER
   {
@@ -2689,7 +2686,7 @@ const ngtcp2_callbacks Session::callbacks[2] = {
 
 int Session::OnReceiveCryptoData(
     ngtcp2_conn* conn,
-    ngtcp2_crypto_level crypto_level,
+    ngtcp2_encryption_level crypto_level,
     uint64_t offset,
     const uint8_t* data,
     size_t datalen,
@@ -2866,7 +2863,7 @@ int Session::OnStreamOpen(ngtcp2_conn* conn, stream_id id, void* user_data) {
 
 int Session::OnAckedCryptoOffset(
     ngtcp2_conn* conn,
-    ngtcp2_crypto_level crypto_level,
+    ngtcp2_encryption_level crypto_level,
     uint64_t offset,
     uint64_t datalen,
     void* user_data) {
@@ -3504,7 +3501,7 @@ std::string Session::RemoteTransportParamsDebug::ToString() const {
       out += "  Original Connection ID: N/A \n";
     }
 
-    if (params.preferred_address_present)
+    if (params.preferred_addr_present)
       out += "  Preferred Address Present: Yes\n";
     else
       out += "  Preferred Address Present: No\n";

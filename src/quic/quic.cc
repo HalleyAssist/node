@@ -176,24 +176,24 @@ void PreferredAddress::CopyToTransportParams(
     const sockaddr* addr) {
   CHECK_NOT_NULL(params);
   CHECK_NOT_NULL(addr);
-  params->preferred_address_present = 1;
+  params->preferred_addr_present = 1;
   switch (addr->sa_family) {
     case AF_INET: {
       const sockaddr_in* src = reinterpret_cast<const sockaddr_in*>(addr);
       memcpy(
-          params->preferred_address.ipv4_addr,
+          params->preferred_addr.ipv4_addr,
           &src->sin_addr,
-          sizeof(params->preferred_address.ipv4_addr));
-      params->preferred_address.ipv4_port = SocketAddress::GetPort(addr);
+          sizeof(params->preferred_addr.ipv4_addr));
+      params->preferred_addr.ipv4_port = SocketAddress::GetPort(addr);
       break;
     }
     case AF_INET6: {
       const sockaddr_in6* src = reinterpret_cast<const sockaddr_in6*>(addr);
       memcpy(
-          params->preferred_address.ipv6_addr,
+          params->preferred_addr.ipv6_addr,
           &src->sin6_addr,
-          sizeof(params->preferred_address.ipv6_addr));
-      params->preferred_address.ipv6_port = SocketAddress::GetPort(addr);
+          sizeof(params->preferred_addr.ipv6_addr));
+      params->preferred_addr.ipv6_port = SocketAddress::GetPort(addr);
       break;
     }
     default:
@@ -236,13 +236,11 @@ Path::Path(
   ngtcp2_addr_init(
       &this->local,
       local->data(),
-      local->length(),
-      nullptr);
+      local->length());
   ngtcp2_addr_init(
       &this->remote,
       remote->data(),
-      remote->length(),
-      nullptr);
+      remote->length());
   
 }
 
