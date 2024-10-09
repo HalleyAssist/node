@@ -13,6 +13,7 @@ import subprocess
 import shutil
 import bz2
 import io
+import platform
 
 # Fallback to find_executable from distutils.spawn is a stopgap for
 # supporting V8 builds, which do not yet support Python 3.
@@ -1843,6 +1844,8 @@ def configure_section_file(o):
       str(options.node_section_ordering_info))
   else:
     o['variables']['node_section_ordering_info'] = ""
+
+  o['variables']['node_is_wsl'] = "true" if platform.uname().release.endswith("-Microsoft") else "false"
 
 def make_bin_override():
   if sys.platform == 'win32':

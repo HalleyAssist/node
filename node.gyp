@@ -869,7 +869,8 @@
         }],
         [ 'OS in "linux freebsd mac solaris" and '
           'target_arch=="x64" and '
-          'node_target_type=="executable"', {
+          'node_target_type=="executable" and '
+          'node_is_wsl=="false"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
         }],
         [ 'use_openssl_def==1', {
