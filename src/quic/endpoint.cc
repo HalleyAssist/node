@@ -742,8 +742,10 @@ bool Endpoint::AcceptInitialPacket(
               dcid,
               scid,
               ocid)) {
-        listeners_.erase(it);
-        listeners_.emplace_back(listener);
+                if(listeners_.size() > 1) {
+                  listeners_.erase(it);
+                  listeners_.emplace_back(listener);
+                }
         return true;
       }
     }
