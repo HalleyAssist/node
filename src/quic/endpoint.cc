@@ -624,8 +624,7 @@ bool Endpoint::AcceptInitialPacket(
       current_socket_address_count(remote_address) >=
           config_.max_connections_per_host) {
     // Endpoint is busy or the connection count is exceeded
-    Debug(env_, DebugCategory::QUICENDPOINT,
-          "Server is busy. Connection refused\n");
+    printf("Server is busy. Connection refused\n");
     IncrementStat(&EndpointStats::server_busy_count);
     ImmediateConnectionClose(
       version,
@@ -646,6 +645,7 @@ bool Endpoint::AcceptInitialPacket(
   // a new token. If it does exist, and if it's valid, we grab the original
   // cid and continue.
   if (!is_validated_address(remote_address)) {
+    printf("Address not validated\n");
     switch (hd.type) {
       case NGTCP2_PKT_INITIAL:
         if (LIKELY(config_.validate_address) || hd.token.len > 0) {
@@ -677,8 +677,7 @@ bool Endpoint::AcceptInitialPacket(
                       config_.retry_token_expiration,
                       token_aead_,
                       token_md_).To(&ocid)) {
-                Debug(env_, DebugCategory::QUICENDPOINT,
-                      "Invalid retry token. Connection refused.\n");
+                printf("Invalid retry token. Connection refused.\n");
                 // Invalid retry token was detected. Close the connection.
                 ImmediateConnectionClose(
                     version,
@@ -881,8 +880,7 @@ void Endpoint::OnReceive(
   // When diagnostic packet loss is enabled, the packet will be randomly
   // dropped based on the rx_loss probability.
   if (UNLIKELY(is_diagnostic_packet_loss(config_.rx_loss))) {
-    Debug(env_, DebugCategory::QUICENDPOINT,
-          "Endpoint: Simulating rx packet loss\n");
+    printf("Endpoint: Simulating rx packet loss on packet of %d size\n", nread);
     return;
   }
 
@@ -936,11 +934,7 @@ void Endpoint::OnReceive(
   CID dcid(pdcid, pdcidlen);
   CID scid(pscid, pscidlen);
 
-  Debug(env_, DebugCategory::QUICENDPOINT,
-        "Endpoint: Receiving packet\n"
-        "    dcid: %s\n"
-        "    scid: %s\n",
-        dcid, scid);
+  printf("Endpoint: Receiving packet of length %d\n", nread);
 
   PacketListener* listener = nullptr;
   {
@@ -954,7 +948,7 @@ void Endpoint::OnReceive(
   // 3. The packet is a stateless reset sent by the peer
   // 4. This is a malicious or malformed packet.
   if (listener == nullptr) {
-    Debug(env_, DebugCategory::QUICENDPOINT, "Endpoint: No existing session\n");
+    printf("Endpoint: No existing session\n");
     bool is_short_header = (pversion == NGTCP2_PROTO_VER_MAX && !scid);
 
     // Handle possible reception of a stateless reset token...
@@ -981,15 +975,13 @@ void Endpoint::OnReceive(
           nread,
           local_address(),
           remote_address)) {
-      Debug(env_, DebugCategory::QUICENDPOINT,
-            "Endpoint: Initial packet accepted\n");
+      printf("Endpoint: Initial packet accepted\n");
       return IncrementStat(&EndpointStats::packets_received);
     }
     return;  // Ignore the packet!
   }
 
-  Debug(env_, DebugCategory::QUICENDPOINT,
-        "Endpoint: Passing packet to session\n");
+  printf("Endpoint: Passing packet to session\n");
   if (listener->Receive(
           dcid,
           scid,

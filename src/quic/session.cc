@@ -471,7 +471,7 @@ int Session::CryptoContext::OnClientHello() {
 
   Environment* env = session_->env();
 
-  Debug(session(), "Invoking client hello callback");
+  printf("Invoking client hello callback\n");
 
   BindingState* state = env->GetBindingData<BindingState>(env->context());
   HandleScope scope(env->isolate());
@@ -516,9 +516,8 @@ int Session::CryptoContext::OnClientHello() {
 
 void Session::CryptoContext::OnClientHelloDone(
     BaseObjectPtr<crypto::SecureContext> context) {
-  Debug(session(),
-        "ClientHello completed. Context Provided? %s\n",
-        context ? "Yes" : "No");
+  printf("ClientHello completed. Context Provided? %s client_hello_done %d in_client_hello_ %d\n",
+        context ? "Yes" : "No", session_->state_->client_hello_done, in_client_hello_);
 
   // Continue the TLS handshake when this function exits
   // otherwise it will stall and fail.
@@ -721,6 +720,7 @@ int Session::CryptoContext::Receive(
 }
 
 void Session::CryptoContext::ResumeHandshake() {
+  printf("%s Resuming handshake\n", session_->is_server() ? "Server" : "Client");
   Receive(read_crypto_level(), 0, nullptr, 0);
   session_->SendPendingData();
 }
@@ -788,8 +788,8 @@ void Session::CryptoContext::WriteHandshake(
     ngtcp2_crypto_level level,
     const uint8_t* data,
     size_t datalen) {
-  Debug(session(),
-        "Writing %d bytes of %s handshake data.",
+  printf("%s Writing %d bytes of %s handshake data.\n",
+        session_->is_server() ? "Server" : "Client",
         datalen,
         crypto_level_name(level));
 
@@ -1789,8 +1789,9 @@ void Session::HandleError() {
 bool Session::HandshakeCompleted(
     const std::shared_ptr<SocketAddress>& remote_address) {
   RemoteTransportParamsDebug transport_params(this);
-  Debug(this, "Handshake completed with %s. %s",
-        remote_address->ToString(),
+  printf("%s Handshake completed with %s. %s\n",
+        is_server() ? "Server" : "Client",
+        remote_address->ToString().c_str(),
         transport_params);
   RecordTimestamp(&SessionStats::handshake_completed_at);
 
@@ -2801,6 +2802,8 @@ int Session::OnConnectionIDStatus(
 
 int Session::OnHandshakeCompleted(ngtcp2_conn* conn, void* user_data) {
   Session* session = static_cast<Session*>(user_data);
+
+  printf("%s OnHandshakeCompleted\n", session->is_server() ? "Server" : "Client");
 
   if (UNLIKELY(session->is_destroyed()))
     return NGTCP2_ERR_CALLBACK_FAILURE;
