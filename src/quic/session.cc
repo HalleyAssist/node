@@ -3602,12 +3602,14 @@ bool DefaultApplication::ReceiveStreamData(
 
 int DefaultApplication::GetStreamData(StreamData* stream_data) {
   if (stream_queue_.IsEmpty()) {
+    stream_data->stream.reset(nullptr);
     stream_data->id = -1;
     return 0;
   }
 
   Stream* stream = stream_queue_.PopFront();
   if (stream == nullptr) {
+    stream_data->stream.reset(nullptr);
     stream_data->id = -1;
     return 0;
   }
