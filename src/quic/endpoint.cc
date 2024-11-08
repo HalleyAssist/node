@@ -2188,7 +2188,6 @@ void EndpointWrap::RemoveSession(
     inner_->DisassociateCID(cid);
     inner_->DecrementSocketAddressCounter(addr);
   }
-  sessions_.erase(cid);
   if (!state_->listening && sessions_.empty()) {
     MakeWeak();
   }
