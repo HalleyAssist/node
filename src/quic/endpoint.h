@@ -738,12 +738,15 @@ class Endpoint final : public MemoryRetainer,
   CloseListener::Set close_listeners_;
 
 
-  uint32_t sessions_size_ = 0;
   bool busy_ = false;
   bool bound_ = false;
   bool receiving_ = false;
 
   Mutex mutex_;
+
+  public:
+  
+  uint32_t sessions_size_ = 0;
 };
 
 // The EndpointWrap is the intermediate JavaScript binding object
