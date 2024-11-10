@@ -597,7 +597,7 @@ class Endpoint final : public MemoryRetainer,
   // server is blocked when activity is high.
   inline void set_busy(bool on = true) { busy_ = on; }
 
-  inline uint32_t session_count() const { return sessions_size_; }
+  inline uint32_t sessions_size() const { return sessions_size_; }
 
   // QUIC strongly recommends the use of flow labels when using IPv6.
   // The GetFlowLabel will deterministically generate a flow label as
