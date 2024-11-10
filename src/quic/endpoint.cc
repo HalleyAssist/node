@@ -2203,7 +2203,7 @@ void EndpointWrap::RemoveSession(
   {
     Endpoint::Lock lock(inner_);
     inner_->DisassociateCID(cid);
-    inner_->sessions_size_++;
+    inner_->sessions_size_--;
     inner_->DecrementSocketAddressCounter(addr);
   }
   sessions_.erase(cid);
