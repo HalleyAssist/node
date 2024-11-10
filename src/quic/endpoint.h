@@ -597,6 +597,8 @@ class Endpoint final : public MemoryRetainer,
   // server is blocked when activity is high.
   inline void set_busy(bool on = true) { busy_ = on; }
 
+  inline uint32_t sessions_size() const { return sessions_size_; }
+
   // QUIC strongly recommends the use of flow labels when using IPv6.
   // The GetFlowLabel will deterministically generate a flow label as
   // a function of the given local address, remote address, and connection ID.
@@ -735,11 +737,16 @@ class Endpoint final : public MemoryRetainer,
   InitialPacketListener::List listeners_;
   CloseListener::Set close_listeners_;
 
+
   bool busy_ = false;
   bool bound_ = false;
   bool receiving_ = false;
 
   Mutex mutex_;
+
+  public:
+  
+  uint32_t sessions_size_ = 0;
 };
 
 // The EndpointWrap is the intermediate JavaScript binding object
@@ -825,8 +832,8 @@ class EndpointWrap final : public AsyncWrap,
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
-
   static void CloseWrapper(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SessionsSize(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   EndpointWrap(
       Environment* env,
