@@ -620,7 +620,7 @@ bool Endpoint::AcceptInitialPacket(
   // server, and this remote addr, new connections will be shut down
   // immediately.
   if (UNLIKELY(busy_) ||
-      sessions_.size() >= config_.max_connections_total ||
+      sessions_size_ >= config_.max_connections_total ||
       current_socket_address_count(remote_address) >=
           config_.max_connections_per_host) {
     // Endpoint is busy or the connection count is exceeded
@@ -1600,6 +1600,10 @@ Local<FunctionTemplate> EndpointWrap::GetConstructorTemplate(
         tmpl,
         "close",
         CloseWrapper);
+    env->SetProtoMethod(
+        tmpl,
+        "sessionsSize",
+        SessionsSize);
 
     state->set_endpoint_constructor_template(tmpl);
   }
@@ -1724,6 +1728,18 @@ void EndpointWrap::CloseWrapper(const FunctionCallbackInfo<Value>& args) {
     endpoint->MakeWeak();
     //endpoint->Close(CloseListener::Context::CLOSE, 0);
   }
+}
+
+void EndpointWrap::SessionsSize(const FunctionCallbackInfo<Value>& args) {
+  EndpointWrap* endpoint;
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.Holder());
+
+  Endpoint::Lock lock(endpoint->inner_);
+
+  auto size = endpoint->inner_->sessions_size();
+
+  args.GetReturnValue().Set(
+      static_cast<int>(size));
 }
 
 void EndpointWrap::StartWaitForPendingCallbacks(
@@ -1887,6 +1903,7 @@ void EndpointWrap::AddSession(
         session->is_server()
             ? &EndpointStats::server_sessions
             : &EndpointStats::client_sessions);
+    inner_->sessions_size_++;
     ClearWeak();
   }
   if (session->is_server())
@@ -2186,9 +2203,11 @@ void EndpointWrap::RemoveSession(
   {
     Endpoint::Lock lock(inner_);
     inner_->DisassociateCID(cid);
-    if (erased) inner_->DecrementSocketAddressCounter(addr);
+    inner_->sessions_size_++;
+    inner_->DecrementSocketAddressCounter(addr);
   }
   sessions_.erase(cid);
+  
   if (!state_->listening && sessions_.empty()) {
     MakeWeak();
   }
