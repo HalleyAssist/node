@@ -684,7 +684,7 @@ void UDPWrap::OnAlloc(uv_handle_t* handle,
                       uv_buf_t* buf) {
   UDPWrap* wrap = ContainerOf(&UDPWrap::handle_,
                               reinterpret_cast<uv_udp_t*>(handle));
-  *buf = wrap->listener()->OnAlloc(suggested_size);
+  *buf = wrap->listener()->OnAlloc(4096);
 }
 
 uv_buf_t UDPWrap::OnAlloc(size_t suggested_size) {
