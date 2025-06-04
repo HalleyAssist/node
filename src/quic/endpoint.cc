@@ -870,7 +870,7 @@ bool Endpoint::MaybeStatelessReset(
 }
 
 uv_buf_t Endpoint::OnAlloc(size_t suggested_size) {
-  return env()->allocate_managed_buffer(suggested_size);
+  return env()->allocate_managed_buffer(2048);
 }
 
 void Endpoint::OnReceive(
