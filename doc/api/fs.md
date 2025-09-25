@@ -1081,6 +1081,9 @@ a colon, Node.js will open a file system stream, as described by
 <!-- YAML
 added: v12.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41439
+    description: Added `recursive` option.
   - version:
      - v13.1.0
      - v12.16.0
@@ -1094,6 +1097,8 @@ changes:
   * `bufferSize` {number} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
+  * `recursive` {boolean} Resolved `Dir` will be an {AsyncIterable}
+    containing all sub files and directories. **Default:** `false`
 * Returns: {Promise}  Fulfills with an {fs.Dir}.
 
 Asynchronously open a directory for iterative scanning. See the POSIX
@@ -1127,6 +1132,9 @@ closed after the iterator exits.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41439
+    description: Added `recursive` option.
   - version: v10.11.0
     pr-url: https://github.com/nodejs/node/pull/22020
     description: New option `withFileTypes` was added.
@@ -1136,6 +1144,7 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
+  * `recursive` {boolean} **Default:** `false`
 * Returns: {Promise}  Fulfills with an array of the names of the files in
   the directory excluding `'.'` and `'..'`.
 
@@ -3033,6 +3042,7 @@ changes:
   * `bufferSize` {number} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
+  * `recursive` {boolean} **Default:** `false`
 * `callback` {Function}
   * `err` {Error}
   * `dir` {fs.Dir}
@@ -3146,6 +3156,7 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
+  * `recursive` {boolean} **Default:** `false`
 * `callback` {Function}
   * `err` {Error}
   * `files` {string\[]|Buffer\[]|fs.Dirent\[]}
@@ -4964,6 +4975,9 @@ object with an `encoding` property specifying the character encoding to use.
 <!-- YAML
 added: v12.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41439
+    description: Added `recursive` option.
   - version:
      - v13.1.0
      - v12.16.0
@@ -4977,6 +4991,7 @@ changes:
   * `bufferSize` {number} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
+  * `recursive` {boolean} **Default:** `false`
 * Returns: {fs.Dir}
 
 Synchronously open a directory. See opendir(3).
@@ -5020,6 +5035,9 @@ this API: [`fs.open()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41439
+    description: Added `recursive` option.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22020
     description: New option `withFileTypes` was added.
@@ -5033,6 +5051,7 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
+  * `recursive` {boolean} **Default:** `false`
 * Returns: {string\[]|Buffer\[]|fs.Dirent\[]}
 
 Reads the contents of the directory.
@@ -5843,6 +5862,16 @@ added: v10.10.0
 The file name that this {fs.Dirent} object refers to. The type of this
 value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 [`fs.readdirSync()`][].
+
+#### `dirent.path`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The base path that this {fs.Dirent} object refers to.
 
 ### Class: `fs.FSWatcher`
 
