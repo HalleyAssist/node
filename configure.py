@@ -5,7 +5,7 @@ import sys
 import errno
 import argparse
 import os
-import pipes
+import shlex
 import pprint
 import re
 import shlex
@@ -17,11 +17,8 @@ import platform
 
 # Fallback to find_executable from distutils.spawn is a stopgap for
 # supporting V8 builds, which do not yet support Python 3.
-try:
-  from shutil import which
-except ImportError:
-  from distutils.spawn import find_executable as which
-from distutils.version import StrictVersion
+from shutil import which
+from packaging.version import Version
 
 # If not run from node/, cd to node/.
 os.chdir(os.path.dirname(__file__) or '.')
@@ -1445,10 +1442,10 @@ def configure_openssl(o):
     # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
     # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
     openssl110_asm_supported = \
-      ('gas_version' in variables and StrictVersion(variables['gas_version']) >= StrictVersion('2.23')) or \
-      ('xcode_version' in variables and StrictVersion(variables['xcode_version']) >= StrictVersion('5.0')) or \
-      ('llvm_version' in variables and StrictVersion(variables['llvm_version']) >= StrictVersion('3.3')) or \
-      ('nasm_version' in variables and StrictVersion(variables['nasm_version']) >= StrictVersion('2.10'))
+      ('gas_version' in variables and Version(variables['gas_version']) >= Version('2.23')) or \
+      ('xcode_version' in variables and Version(variables['xcode_version']) >= Version('5.0')) or \
+      ('llvm_version' in variables and Version(variables['llvm_version']) >= Version('3.3')) or \
+      ('nasm_version' in variables and Version(variables['nasm_version']) >= Version('2.10'))
 
     if is_x86 and not openssl110_asm_supported:
       error('''Did not find a new enough assembler, install one or build with
@@ -1945,7 +1942,7 @@ write('config.gypi', do_not_edit +
       pprint.pformat(output, indent=2) + '\n')
 
 write('config.status', '#!/bin/sh\nset -x\nexec ./configure ' +
-      ' '.join([pipes.quote(arg) for arg in original_argv]) + '\n')
+      ' '.join([shlex.quote(arg) for arg in original_argv]) + '\n')
 os.chmod('config.status', 0o775)
 
 
