@@ -1907,11 +1907,11 @@ configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_v8(output)
+configure_section_file(output)
 configure_openssl(output)
 configure_intl(output)
 configure_static(output)
 configure_inspector(output)
-configure_section_file(output)
 
 # Forward OSS-Fuzz settings
 output['variables']['ossfuzz'] = b(options.ossfuzz)
