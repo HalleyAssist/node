@@ -1156,6 +1156,9 @@ def configure_node(o):
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
   o['variables']['error_on_warn'] = b(options.error_on_warn)
 
+
+  o['variables']['node_is_wsl'] = "true" if platform.uname().release.endswith("-Microsoft") else "false"
+  
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
   target_arch = options.dest_cpu or host_arch
   # ia32 is preferred by the build tools (GYP) over x86 even if we prefer the latter
@@ -1841,8 +1844,6 @@ def configure_section_file(o):
       str(options.node_section_ordering_info))
   else:
     o['variables']['node_section_ordering_info'] = ""
-
-  o['variables']['node_is_wsl'] = "true" if platform.uname().release.endswith("-Microsoft") else "false"
 
 def make_bin_override():
   if sys.platform == 'win32':
