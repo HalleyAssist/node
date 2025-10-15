@@ -3299,6 +3299,11 @@ bool Session::Application::SendPendingData() {
     // If stream_data.id is -1, then we're not serializing any data for any
     // specific stream. We still need to process QUIC session packets tho.
     if (stream_data.id >= 0) {
+      if(!stream_data.fin && stream_data.remaining == 0) {
+        // nothing to send
+        continue;
+      }
+
       Debug(session(), "Serializing packets for stream id %" PRId64,
             stream_data.id);
       packet->AddRetained(stream_data.stream->GetOutboundSource());
@@ -3570,8 +3575,10 @@ bool DefaultApplication::ReceiveStreamData(
   // if the datalen is greater than 0, otherwise, we ignore
   // the packet. ngtcp2 should be handling this for us,
   // but we handle it just to be safe.
+  //
   // MH: this is wrong, we need to handle empty stream frames as
-  //     they can be used to signal the end of a stream
+  //     they can be used to signal the end of a stream when flags
+  //     have been set (e.g FIN)
   if (UNLIKELY(datalen == 0 && !flags))
     return true;
 
