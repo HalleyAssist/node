@@ -44,7 +44,7 @@ static const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
 };
 
-static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
+static const char system_cert_path[] = {0};
 
 static X509_STORE* root_cert_store;
 
@@ -194,8 +194,7 @@ X509_STORE* NewRootCertStore() {
   static Mutex root_certs_vector_mutex;
   Mutex::ScopedLock lock(root_certs_vector_mutex);
 
-  if (root_certs_vector.empty() &&
-      per_process::cli_options->ssl_openssl_cert_store == false) {
+  if (root_certs_vector.empty()) {
     for (size_t i = 0; i < arraysize(root_certs); i++) {
       X509* x509 =
           PEM_read_bio_X509(NodeBIO::NewFixed(root_certs[i],
@@ -219,13 +218,9 @@ X509_STORE* NewRootCertStore() {
   }
 
   Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
-  if (per_process::cli_options->ssl_openssl_cert_store) {
-    X509_STORE_set_default_paths(store);
-  } else {
-    for (X509* cert : root_certs_vector) {
-      X509_up_ref(cert);
-      X509_STORE_add_cert(store, cert);
-    }
+  for (X509* cert : root_certs_vector) {
+    X509_up_ref(cert);
+    X509_STORE_add_cert(store, cert);
   }
 
   return store;
