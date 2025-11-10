@@ -110,6 +110,11 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
   static const size_t kSizeOffset;
   static const size_t kStartOffset;
   static const size_t kFinishedMicrotaskCountOffset;
+  // Offset for the max microtasks per checkpoint. If zero, treat as unlimited.
+  static const size_t kMaxMicrotasksPerCheckpointOffset;
+
+  // Default max microtasks per checkpoint. Zero means unlimited.
+  static const intptr_t kDefaultMaxMicrotasksPerCheckpoint;
 
   static const intptr_t kMinimumCapacity;
 
@@ -131,6 +136,10 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
 
   // The number of finished microtask.
   intptr_t finished_microtask_count_ = 0;
+
+  // The maximum number of microtasks to run in a single PerformCheckpoint.
+  // If zero, treat as unlimited.
+  intptr_t max_microtasks_per_checkpoint_ = kDefaultMaxMicrotasksPerCheckpoint;
 
   // MicrotaskQueue instances form a doubly linked list loop, so that all
   // instances are reachable through |next_|.

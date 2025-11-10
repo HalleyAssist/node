@@ -578,6 +578,13 @@ TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
   auto microtask_queue =
       UncheckedParameter<RawPtrT>(Descriptor::kMicrotaskQueue);
 
+  // Load per-checkpoint limit. If zero, treat as unlimited.
+  TNode<IntPtrT> limit = Load<IntPtrT>(microtask_queue,
+                                       IntPtrConstant(
+                                           MicrotaskQueue::
+                                               kMaxMicrotasksPerCheckpointOffset));
+  TVARIABLE(IntPtrT, processed, IntPtrConstant(0));
+
   Label loop(this), done(this);
   Goto(&loop);
   BIND(&loop);
@@ -607,7 +614,21 @@ TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
 
   RunSingleMicrotask(current_context, microtask);
   IncrementFinishedMicrotaskCount(microtask_queue);
-  Goto(&loop);
+
+  // If a per-checkpoint limit is set (non-zero), count and stop when
+  // the limit is reached so remaining microtasks stay in the queue for
+  // the next checkpoint.
+  {
+    TNode<IntPtrT> zero = IntPtrConstant(0);
+    // If limit == 0, unlimited: continue looping.
+    GotoIf(WordEqual(limit, zero), &loop);
+
+    TNode<IntPtrT> new_processed = IntPtrAdd(processed.value(),
+                                            IntPtrConstant(1));
+    processed = new_processed;
+    // Continue if processed < limit, otherwise exit.
+    Branch(IntPtrLessThan(new_processed, limit), &loop, &done);
+  }
 
   BIND(&done);
   {

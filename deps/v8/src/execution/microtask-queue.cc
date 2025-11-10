@@ -27,8 +27,13 @@ const size_t MicrotaskQueue::kSizeOffset = OFFSET_OF(MicrotaskQueue, size_);
 const size_t MicrotaskQueue::kStartOffset = OFFSET_OF(MicrotaskQueue, start_);
 const size_t MicrotaskQueue::kFinishedMicrotaskCountOffset =
     OFFSET_OF(MicrotaskQueue, finished_microtask_count_);
+const size_t MicrotaskQueue::kMaxMicrotasksPerCheckpointOffset =
+  OFFSET_OF(MicrotaskQueue, max_microtasks_per_checkpoint_);
 
 const intptr_t MicrotaskQueue::kMinimumCapacity = 8;
+
+// Default maximum microtasks per checkpoint. Zero means unlimited.
+const intptr_t MicrotaskQueue::kDefaultMaxMicrotasksPerCheckpoint = 64;
 
 // static
 void MicrotaskQueue::SetUpDefaultMicrotaskQueue(Isolate* isolate) {
